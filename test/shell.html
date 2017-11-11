@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+  <link rel="stylesheet" href="./theme.css"   type="text/css">
+  <link rel="stylesheet" href="./support.css" type="text/css">
+
+  <script src="../dist/daub.js"></script>
+  <script src="./support.js"></script>
+
+  <title>Daub tests</title>
+
+</head>
+
+<body>
+
+<ul id="menu"></ul>
+
+<section id="basic">
+  <header>
+    <h1>Basic example</h1>
+  </header>
+  
+  <article>
+    <pre><code class="shell">
+    #!/bin/bash
+
+    cd $ROOT_DIR
+    DOT_FILES="lastpass weechat ssh Xauthority"
+    for dotfile in $DOT_FILES; do conform_link "$DATA_DIR/$dotfile" ".$dotfile"; done
+
+    # TODO: refactor with suffix variables (or common cron values)
+
+    case "$PLATFORM" in
+        linux)
+            #conform_link "$CONF_DIR/shell/zshenv" ".zshenv"
+            crontab -l > $ROOT_DIR/tmp/crontab-conflict-arch
+            cd $ROOT_DIR/$CONF_DIR/cron
+            if [[ "$(diff ~/tmp/crontab-conflict-arch crontab-current-arch)" == ""
+                ]];
+                then # no difference with current backup
+                    logger "$LOG_PREFIX: crontab live settings match stored "\
+                        "settings; no restore required"
+                    rm ~/tmp/crontab-conflict-arch
+                else # current crontab settings in file do not match live settings
+                    crontab $ROOT_DIR/$CONF_DIR/cron/crontab-current-arch
+                    logger "$LOG_PREFIX: crontab stored settings conflict with "\
+                        "live settings; stored settings restored. "\
+                        "Previous settings recorded in ~/tmp/crontab-conflict-arch."
+            fi
+        ;;
+    </code></pre>
+    
+  </article>
+  
+</section>
+
+<script type="text/javascript">
+  Support.setup();
+</script>
+
+</body>
+</html>

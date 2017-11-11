@@ -1,0 +1,149 @@
+code b {
+  font-weight: normal;
+}
+
+code .comment {
+  color: #B0B0B0;
+}
+
+code .string {
+  color: #6f0;
+}
+
+code .string .escape,
+code .regexp .escape {
+  color: #7CB893;
+}
+
+code .interpolation {
+  background-color: #333;
+}
+
+code .keyword,
+code .control,
+code .selector,
+code .operator {
+  color: #f60;
+}
+
+code .keyword.keyword-function {
+  font-style: italic;
+  color: #fc0;
+}
+
+code .keyword.special,
+code .selector-pseudo,
+code .unit {
+  color: #DDE93D;
+}
+
+code .number {
+  color: #BCA1B5;
+}
+
+code .constant,
+code .symbol {
+  color: #7CB893;
+}
+
+code .superclass {
+  font-style: italic;
+}
+
+code .storage {
+  font-style: italic;
+}
+
+code .support {
+  color: #D4E6FF;
+}
+
+code .support.dom {
+  color: #53D7FE;
+}
+
+code .function,
+code .entity,
+code .property {
+  color: #fc0;
+}
+
+code .parameter {
+  font-style: italic;
+}
+
+code .variable {
+  color: #5ddbff;
+}
+
+code .regexp {
+  color: #29A994;
+}
+
+code .regexp .group {
+  background-color: #041210;
+}
+
+code .regexp .group .group {
+  background-color: #0c1a17;
+}
+
+code .regexp .group .group .group {
+  background-color: #14211e;
+}
+
+code .regexp .group .group .group .group {
+  background-color: #1b2724;
+}
+
+code .embedded {
+  background-color: #444;
+}
+
+code .string-shell-command,
+code .string-template {
+  color: #cc3;
+}
+
+code .embedded .interpolation {
+  background-color: #222;
+}
+
+code .interpolation-contents {
+  color: #fff;
+}
+
+code .element .tag,
+code .element .punctuation,
+code .element .attribute {
+  color: #f60;
+}
+
+code.css .property,
+code.scss .property {
+  color: #999966;
+}
+
+code.css .string-unquoted,
+code.scss .string-unquoted {
+  color: #5ddbff;
+  font-style: italic;
+}
+
+code.css .selector-class,
+code.scss .selector-class {
+  font-style: italic;
+}
+
+code .entity-class {
+  color: #fff;
+  text-decoration: underline;
+}
+
+code .entity-class.entity-superclass {
+  color: #fc0;
+}
+
+code .debug {
+  outline: 1px solid #f00;
+}

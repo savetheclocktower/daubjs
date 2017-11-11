@@ -1,0 +1,5 @@
+.DS_Store
+.tm_properties
+.sublime-project
+.vscode
+node_modules

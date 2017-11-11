@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+  <link rel="stylesheet" href="theme.css" type="text/css" media="screen" />
+
+  <script defer src="../dist/daub.js"></script>
+  <script defer src="./support.js"></script>
+
+  <link rel="stylesheet" href="./theme.css"   type="text/css">
+  <link rel="stylesheet" href="./support.css" type="text/css">
+
+  <title>Daub tests</title>
+
+</head>
+
+<body>
+
+<ul id="menu"></ul>
+
+<h1 id="string-escapes">String escapes and interpolation</h1>
+
+<pre><code class="ruby">
+"\\lorem\" #{ipsum + 4 + foo}\" dolor\""
+# et cetera
+`cat foo > bar #{bacon}`
+# test
+</code></pre>
+
+<h1 id="block-braces">Blocks and brace-balancing</h1>
+
+<pre><code class="ruby">
+foo.map { |id| "/spots/#{id}" }
+</code></pre>
+
+<h1 id="percent-q">%Q and brace-balancing</h1>
+
+<pre><code class="ruby">UH_OH = %Q{
+  this { \{ #{thing + 1} will be a \} problem. }
+}
+
+# this should not be highlighted like a string.
+</code></pre>
+
+<h1 id="elaborate-parameters">Elaborate default parameters</h1>
+
+<pre><code class="ruby">def to_public_json(format=:full, options={:foo => "bar", :baz => :thud, :zort => 5_000, :troz => { :wat => 'this is ridiculous' } }, nil_by_default=nil, false_by_default=false)
+  hash = {
+    :message    => self.message,
+    :created_at => self.created_at,
+    :spot       => self.spot.to_public_json(options[:spot_format] || :short),
+    :user       => self.user.to_public_json(options[:user_format] || :short)
+  }
+end
+</code></pre>
+
+<h1 id="nested-blocks">Nested blocks</h1>
+
+<pre><code class="ruby">
+foo.map { |id|
+  item.map { |wtf| "wtf#{id}" }
+  "foo#{id}"
+}
+</code></pre>
+
+<h1 id="block-params">Block parameters</h1>
+
+<pre><code class="ruby">
+troz.map do |bar, baz|
+  zort &lt;&lt; baz
+  if something
+    "something else"
+  end
+end
+</code></pre>
+
+<h1 id="shell-commands">Shell commands</h1>
+
+<pre><code class="ruby">
+foo = CGI::escape('foo')
+$result = `do --something | with #{foo}`
+</code></pre>
+
+<script type="text/javascript">
+  document.addEventListener('DOMContentLoaded', function () {
+    Support.setup();
+  });
+</script>
+
+</body>
+</html>

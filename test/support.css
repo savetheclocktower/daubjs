@@ -1,0 +1,23 @@
+body {
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 13px;
+}
+
+pre {
+  background-color: #0a0a18;
+  padding: 5px 10px;
+  white-space: pre-wrap;
+}
+
+code {
+  color: #fff;
+  font-family: Menlo, Monaco, 'Lucida Console', 'Andale Mono', monospace;
+}
+
+pre code {
+  line-height: 18px;
+}
+
+.daub-line-highlight {
+  background-color: rgba(255, 255, 255, 0.21);
+}
