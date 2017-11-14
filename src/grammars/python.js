@@ -1,69 +1,173 @@
 import { Grammar, Utils } from '../daub';
 const { balance, wrap, compact, VerboseRegExp } = Utils;
 
-// function wrapParameter (param) {
-//   let className = 'variable parameter';
-//   return `<span class='${className}'>${param}</span>`;
-// }
-
-function handleParameters(str, context) {
-  let parts = str.split(/,[ \t]*/).map((part) => {
-    return highlightParameters(part, MAIN, false, context);
-  });
-  return parts.join(', ');
-}
-
-function handleArguments(str, context) {
-  console.log('handleArguments', str);
-  let parts = str.split(/,[ \t]*/).map((part) => {
-    return highlightParameters(part, MAIN, true, context);
-  });
-  return parts.join(', ');
-}
-
-const DEFAULT_VALUE_PATTERN = /(^|\s+)([A-Za-z0-9_]+)(\s*=\s*)(.*)/gm;
-function highlightParameters(part, grammar, onlyHighlightKeywordArgs, context) {
-  if (!grammar) { grammar = MAIN; }
-
-  if ( DEFAULT_VALUE_PATTERN.test(part) ) {
-    // This parameter has a default value set.
-    part = part.replace(DEFAULT_VALUE_PATTERN, (match, ...m) => {
-      let [space, name, eq, value] = m;
-      name = wrap(name, 'variable parameter');
-      eq   = wrap(eq, 'keyword punctuation');
-      value = grammar.parse(value);
-      return space + name + eq + value;
-    });
-  } else {
-    part = onlyHighlightKeywordArgs ?
-      grammar.parse(part, context) :
-      wrap(part, 'variable parameter');
-  }
-  return part;
-}
-
 const STRINGS = new Grammar({
   interpolation: {
     pattern: /\{(\d*)\}/
+  },
+  
+  'escape escape-hex': {
+    pattern: /\\x[0-9a-fA-F]{2}/
+  },
+  
+  'escape escape-octal': {
+    pattern: /\\[0-7]{3}/
+  },
+
+  escape: {
+    pattern: /\\./
   }
 });
 
-const MAIN = new Grammar('python', {
-  'keyword keyword-import': {
-    pattern: /(from)(\s+)(.*?)(\s+)(import)(\s+)(.*?)(?=\n)/,
-    replacement: compact(`
-      <span class='#{name}'>#{1}</span>#{2}
-      #{3}#{4}
-      <span class='keyword'>#{5}</span>#{6}
-      #{7}
-    `)
+const VALUES = new Grammar({
+  'lambda': {
+    pattern: /(lambda)(\s+)(.*?)(:)/,
+    replacement: "<span class='keyword storage'>#{1}</span>#{2}#{3}#{4}",
+    before: (r, context) => {
+      r[3] = PARAMETERS_WITHOUT_DEFAULT.parse(r[3], context);
+    }
+  },
+  
+  'string string-triple-quoted': {
+    pattern: /"""[\s\S]*?"""/,
+    before: (r, context) => {
+      r[0] = STRINGS.parse(r[0], context);
+    }
+  },
+  
+  'string string-raw string-single-quoted': {
+    pattern: (/([urb]+)(')(.*?[^\\]|[^\\]*)(')/),
+    replacement: "<span class='storage string'>#{1}</span><span class='#{name}'>#{2}#{3}#{4}</span>",
+    before: (r, context) => {
+      r[3] = STRINGS.parse(r[3], context);
+    }
   },
 
+  'string string-single-quoted': {
+    // In capture group 2 we want zero or more of:
+    // * any non-apostrophes and non-backslashes OR
+    // * a backslash plus exactly one of any character (including backslashes)
+    pattern: /([ub])?(')((?:[^'\\]|\\.)*)(')/,
+    replacement: "#{1}<span class='#{name}'>#{2}#{3}#{4}</span>",
+    before: (r, context) => {
+      if (r[1]) { r[1] = wrap(r[1], 'storage string'); }
+      r[3] = STRINGS.parse(r[3], context);
+    }
+  },
+  
+  'string string-double-quoted': {
+    // In capture group 2 we want zero or more of:
+    // * any non-quotes and non-backslashes OR
+    // * a backslash plus exactly one of any character (including backslashes)
+    pattern: /([ub])?(")((?:[^"\\]|\\.)*)(")/,
+    replacement: "#{1}<span class='#{name}'>#{2}#{3}#{4}</span>",
+    before: (r, context) => {
+      if (r[1]) { r[1] = wrap(r[1], 'storage string'); }
+      r[3] = STRINGS.parse(r[3], context);
+    }
+  },
+
+  constant: {
+    pattern: /\b(self|None|True|False)\b/
+  },
+
+  // Initial declaration of a constant.
+  'constant constant-assignment': {
+    pattern: /^([A-Z][A-Za-z\d_]*)(\s*)(?=\=)/,
+    replacement: "<span class='#{name}'>#{1}</span>#{2}"
+  },
+  
+  // Usage of a constant after assignment.
+  'constant constant-named': {
+    pattern: /\b([A-Z_]+)(?!\.)\b/,
+    replacement: "<span class='#{name}'>#{1}</span>"
+  },
+
+  'variable variable-assignment': {
+    pattern: /([a-z_][[A-Za-z\d_]*)(\s*)(?=\=)/,
+    replacement: "<span class='#{name}'>#{1}</span>#{2}"
+  },
+
+  number: {
+    pattern: /(\b|-)((0(x|X)[0-9a-fA-F]+)|([0-9]+(\.[0-9]+)?))\b/
+  },
+  
+  'number number-binary': {
+    pattern: /0b[01]+/
+  },
+  
+  'number number-octal': {
+    pattern: /0o[0-7]+/
+  }
+});
+
+const ARGUMENTS = new Grammar({
+  'meta: parameter with default': {
+    pattern: /(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*?)(?=,|$)/,
+    replacement: `#{1}<span class='variable parameter'>#{2}</span><span class='keyword punctuation'>#{3}</span>#{4}`,
+
+    before: (r, context) => {
+      r[4] = VALUES.parse(r[4], context);
+    }
+  }
+}).extend(VALUES);
+
+const PARAMETERS_WITHOUT_DEFAULT = new Grammar({
+  'variable parameter': {
+    pattern: /(\s*)(\*\*?)?([A-Za-z0-9_]+)(?=,|$)/,
+    replacement: "#{1}#{2}<span class='#{name}'>#{3}</span>",
+    before: (r) => {
+      if (r[2]) { r[2] = wrap(r[2], 'keyword operator'); }
+    }
+  }
+});
+
+const PARAMETERS = new Grammar({
+  'meta: parameter with default': {
+    pattern: /(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*?)(?=,|$)/,
+    replacement: `#{1}<span class='variable parameter'>#{2}</span><span class='keyword punctuation'>#{3}</span>#{4}`,
+
+    before: (r, context) => {
+      r[4] = VALUES.parse(r[4], context);
+    }
+  }
+}).extend(PARAMETERS_WITHOUT_DEFAULT);
+
+
+const MAIN = new Grammar('python', {
+  'storage storage-type support': {
+    pattern: /(int|float|bool|chr|str|bytes|list|dict|set)(?=\()/
+  },
+  
+  'support support-builtin': {
+    pattern: /(repr|round|print|input|len|min|max|sum|sorted|enumerate|zip|all|any|open)(?=\()/
+  },
+  
+  'meta: from/import/as': {
+    pattern: /(from)(\s+)(.*?)(\s+)(import)(\s+)(.*?)(\s+)(as)(\s+)(.*?)(?=\n|$)/,
+    replacement: compact(`
+      <span class='keyword'>#{1}</span>#{2}
+      #{3}#{4}
+      <span class='keyword'>#{5}</span>#{6}
+      #{7}#{8}
+      <span class='keyword'>#{9}</span>#{10}#{11}
+    `),
+  },
+  
+  'meta: from/import': {
+    pattern: /(from)(\s+)(.*?)(\s+)(import)(\s+)(.*?)(?=\n|$)/,
+    replacement: compact(`
+      <span class='keyword'>#{1}</span>#{2}
+      #{3}#{4}
+      <span class='keyword'>#{5}</span>#{6}#{7}
+    `)
+  },
+  
   'meta: subclass': {
     pattern: /(class)(\s+)([\w\d_]+)\(([\w\d_]*)\):/,
     replacement: compact(`
       <span class='keyword'>#{1}</span>#{2}
-      <span class='entity entity-class class'>#{3}</span>
+      <span class='entity entity-class'>#{3}</span>
       (<span class='entity entity-class entity-superclass'>#{4}</span>) :
     `),
   },
@@ -80,65 +184,10 @@ const MAIN = new Grammar('python', {
   keyword: {
     pattern: VerboseRegExp`
     \b
-    (?:from|if|else|elif|print|import|class|pass|
-      try|finally|except|return|global|nonlocal)
+    (?:if|else|elif|print|class|pass|from|import|raise|while|
+      try|finally|except|return|global|nonlocal|for|in|del|with)
     \b
     `
-  },
-
-  'string string-triple-quoted': {
-    pattern: /"""[\s\S]*?"""/,
-    before: (r, context) => {
-      console.log('match triple:', r[0]);
-      r[0] = STRINGS.parse(r[0], context);
-    }
-  },
-
-  // 'string string-single-quoted': {
-  //   pattern: (/(')(.*?[^\\])(')/),
-  //   replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-  //   // before: (r, context) => {
-  //   //   r[2] = ESCAPES.parse(r[2], context);
-  //   // }
-  // },
-  //
-  // 'string string-double-quoted': {
-  //   pattern: /(")(.*?[^\\])(")/,
-  //   replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-  //   // before: (r, context) => {
-  //   //   r[2] = ESCAPES.parse(r[2], context);
-  //   // }
-  // },
-
-
-  string: {
-    pattern: /('[^']*')|("[^"]*")/,
-    before: (r) => {
-      let name;
-      if (r[1]) name = 'string-single-quoted';
-      if (r[2]) name = 'string-double-quoted';
-      r.name += ` ${name}`;
-    }
-  },
-
-  constant: {
-    pattern: /\b(self|None|True|False)\b/
-  },
-
-  // Usage of a constant after assignment.
-  'constant constant-named': {
-    pattern: /\b([A-Z_]+)(?!\.)\b/,
-    replacement: "<span class='#{name}'>#{1}</span>"
-  },
-
-  // Initial declaration of a constant.
-  'constant constant-assignment': {
-    pattern: /^([A-Z][A-Za-z\d_]*)(\s*)(?=\=)/,
-    replacement: "<span class='variable'>#{1}</span>"
-  },
-
-  number: {
-    pattern: /(\b|-)((0(x|X)[0-9a-fA-F]+)|([0-9]+(\.[0-9]+)?))\b/
   },
 
   'meta: method definition': {
@@ -157,9 +206,7 @@ const MAIN = new Grammar('python', {
       #{5}#{6}#{7}
     `),
     before: (r, context) => {
-      if (r[6]) {
-        r[6] = handleParameters(r[6], context);
-      }
+      if (r[6]) { r[6] = PARAMETERS.parse(r[6], context); }
     }
   },
 
@@ -177,7 +224,7 @@ const MAIN = new Grammar('python', {
     replacement: "#{1}#{2}#{3}#{4}#{5}",
     before: (r, context) => {
       if (r[4]) {
-        r[4] = handleArguments(r[4], context);
+        r[4] = ARGUMENTS.parse(r[4], context);
       }
     }
   },
@@ -190,6 +237,10 @@ const MAIN = new Grammar('python', {
     pattern: /(?:&|\||~|\^|>>|<<)/
   },
 
+  'keyword operator operator-assignment': {
+    pattern: /=/
+  },
+
   'keyword operator operator-comparison': {
     pattern: /(?:>=|<=|!=|==|>|<)/
   },
@@ -198,5 +249,7 @@ const MAIN = new Grammar('python', {
     pattern: /(?:\+=|\-=|=|\+|\-|%|\/\/|\/|\*\*|\*)/
   }
 });
+
+MAIN.extend(VALUES);
 
 export default MAIN;

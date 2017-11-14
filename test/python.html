@@ -17,6 +17,34 @@
 
 <ul id="menu"></ul>
 
+<h1 id="misc">Miscellaneous</h1>
+
+<pre><code class="python">def make_incrementor(n):
+  return lambda x, y, foo: x + n</code></pre>
+
+<h1 id="parameters">Parameters</h1>
+
+<pre><code class="python">def fct(x, y, z, *args, a=3, b = 5, **kwargs):
+  print("{}".format(a))</code></pre>
+
+<h1 id="imports">Imports</h1>
+
+<pre><code class="python">from foo import bar as baz</code></pre>
+
+<h1 id="types">Types</h1>
+
+<pre><code class="python">int("15") # → 15
+integers = [int(x) for x in ('1','29','-3')] # → [1,29,-3]
+</code></pre>
+
+<h1 id="escapes">Escapes</h1>
+
+<pre><code class="python">
+b"toto\xfe\775" # byte string
+r'abc\dev\''    # raw string
+u'abc\\dev\\t'  # unicode string
+</code></pre>
+
 <h1 id="basic">Basic example</h1>
 
 <pre><code class="python">#!/usr/bin/env python3
@@ -53,7 +81,7 @@ GPIO.setmode(GPIO.BCM)
 # The lead labeled OUT is setup as IN — it's output from the power switch,
 # but it's input to us, and vice-versa.
 GPIO.setup(PIN_OUT, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(PIN_IN, GPIO.OUT)
+GPIO.setup(PIN_IN,  GPIO.OUT)
 
 GPIO.output(PIN_IN, GPIO.HIGH)
 
@@ -78,7 +106,7 @@ os.system('sudo poweroff')</code></pre>
 
 <h1 id="advanced">Advanced example</h1>
 
-<pre data-only><code class="python"># test python (sample from offlineimap)
+<pre><code class="python"># test python (sample from offlineimap)
 
 class ExitNotifyThread(Thread):
     """This class is designed to alert a "monitor" to the fact that a thread has

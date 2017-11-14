@@ -84,12 +84,12 @@ const BLOCK_PARAMETERS = new Grammar({
 const VALUES = new Grammar({
   // Single-quoted strings are easy; they have no escapes _or_
   // interpolation.
-  'single-quoted string': {
+  'string string-single-quoted': {
     pattern: (/(')([^']*?)(')/),
     replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>"
   },
 
-  'double-quoted string': {
+  'string string-double-quoted': {
     pattern: (/(")(.*?[^\\])(")/),
     replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
     before: function(r, context) {
@@ -99,11 +99,11 @@ const VALUES = new Grammar({
 
   // Probably could rewrite the above pattern to catch this, but this is
   // good enough for now.
-  'double-quoted string empty': {
+  'string string-double-quoted empty': {
     pattern: (/\"\"/)
   },
 
-  'string percent-q percent-q-braces': {
+  'string string-percent-q string-percent-q-braces': {
     // Capture group 2 is greedy because we don't know how much of this
     // pattern is ours, so we ask for everything up until the last brace in
     // the text. Then we find the balanced closing brace and act upon that
@@ -126,7 +126,7 @@ const VALUES = new Grammar({
     }
   },
 
-  'string percent-q percent-q-brackets': {
+  'string string-percent-q string-percent-q-brackets': {
     pattern: (/(%Q\[)(.*?[^\\])(\])/),
     replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
     before: (r, context) => {

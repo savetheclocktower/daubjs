@@ -294,7 +294,7 @@ class Grammar {
   parse (text, context = null) {
     let pattern = this.pattern;
     pattern.lastIndex = 0;
-
+    
     // eslint-disable-next-line
     console.debug(`Parsing ${this.name || ''}`, { pattern, text });
 
