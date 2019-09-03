@@ -14,30 +14,43 @@ window.Support = {
 
       document.querySelector('ul#menu').innerHTML = lis.join('\n');
     }
+    
+    let node = document.querySelector('*[data-daub-lang]');
+    console.log('node:', node);
+    let langs = (node.getAttribute('data-daub-lang') || '').split(',');
+    
+    window.h = new daub.Highlighter();
 
-    if (!window.Daub) { return; }
-
+    langs.forEach(function (lang) {
+      console.log('lang:', lang);
+      console.log('daub:', daub, Object.keys(daub));
+      if (daub[lang]) {
+        console.log('adding:', lang);
+        h.addGrammar(daub[lang]);
+      }
+    });
+    
     // If there's a PRE element with a `data-only` attribute, highlight only
     // that element. Useful for debugging.
     if (document.querySelector('[data-only]')) {
-      Daub.addElement( document.querySelector('[data-only]') );
+      h.addElement( document.querySelector('[data-only]') );
     } else {
-      Daub.addElement(document.body);
+      h.addElement(document.body);
     }
-
+    
     let start, end;
     start = performance.now();
     if (performance && performance.mark) {
       performance.mark('daub-before');
     }
-    Daub.highlight();
+    h.highlight();
     if (performance && performance.mark) {
       performance.mark('daub-after');
       performance.measure('daub-before', 'daub-after');
     }
     end = performance.now();
     console.log('highlight time:', end - start, 'ms');
-
+    
 
     // Keep the chosen section in view.
     let hash = window.location.hash;

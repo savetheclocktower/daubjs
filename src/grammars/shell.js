@@ -42,12 +42,24 @@ const MAIN = new Grammar('shell', {
     }
   },
 
+  'support support-builtin': {
+    pattern: /\b(?:sudo|chmod|cd|mkdir|ls|cat|echo|touch|mv|cp|rm|ln|sed|awk|tr|xargs|yes|pbcopy|pbpaste)\b/
+  },
+
+  'support support-other': {
+    pattern: /\b(?:ruby|gem|rake|python|pip|easy_install|node|npm|php|perl|bash|sh|zsh|gcc|go|mate|subl|atom)\b/
+  },
+
   number: {
     pattern: /\b(?:[0-9]+(\.[0-9]+)?)\b/
   },
 
   constant: {
     pattern: /\b(?:false|true)\b/
+  },
+  
+  'constant constant-home': {
+    pattern: /(^|\s*|\n)~(?=\b|\/)/
   },
 
   keyword: {
@@ -70,6 +82,7 @@ const MAIN = new Grammar('shell', {
   'variable variable-in-braces': {
     pattern: /\$\{.+?}(?=\n|\b)/
   }
+  
 }, { alias: ['bash'] });
 
 export default MAIN;

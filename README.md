@@ -4,6 +4,12 @@ Syntax highlighting for the browser and elsewhere. Like the earlier [Fluorescenc
 
 Daub is the great-great-grandchild of Dan Webb’s Unobtrusive Code Highlighter, which was one of the early client-side code highlighters. Dan's script was itself inspired by Dean Edwards’s [star-light][].
 
+## Why?
+
+[Prism][] is great, and you should probably use it instead of trying to get this to work. It’s pretty half-baked.
+
+But why did I write it instead of just using Prism? Because I don’t like the built-in grammars in Prism. Most of them seem designed to highlight keywords, strings, and little else. They can be hacked at, but it felt like swimming upstream. I’m definitely the weird one here.
+
 ## Usage
 
 ### Annotate your `code` elements with class names
@@ -47,7 +53,7 @@ You can add any element, and any _named_ grammar, to a highlighter.
 highlighter.highlight();
 ```
 
-Each time `highlight` is called, the highlighter will scan for new code blocks. You can call `highlight` again whenever there might be new content to be highlighted.
+Each time `highlight` is called, the highlighter will scan for new code blocks. You can call `highlight` again whenever there might be new content to be highlighted. Choose your own strategy for automating this if you like — poll every second, set up a `MutationObserver`, go nuts.
 
 ## How does it work?
 
@@ -56,6 +62,8 @@ Regular expressions and voodoo.
 I've iterated on this approach to syntax highlighting because I find it easy to reason about and write new grammars for, and because it’s quite fast.
 
 A grammar consists of a series of patterns, each with its own replacement. When parsing text, a grammar consolidates all those patterns into _one_ gigantic regular expression and iteratively matches it against the target string. The first match gets extracted from the string, replaced, and added to the destination string. This process repeats until the entire target string is consumed.
+
+In certain places, this approach needs outside help in order to identify how much of the string needs to be consumed at one time. Daub uses a couple of different strategies to deliver that help, as is explained in more detail below.
 
 ## How do I write my own grammar?
 
@@ -71,9 +79,9 @@ let RUBY = new Grammar('ruby', {
     pattern: /\b(?:if|else|elsif|case|when|then|for|while|until|unless)\b/
   },
 
-  'entity module': {
+  'module': {
     pattern: /(module)(\s*)(A-Za-z_\w*)/,
-    replacement: "<span class='keyword'>#{1}</span>#{2}<span class='#{name}'>#{3}</span>"
+    replacement: `<span class="keyword">#{1}</span>#{2}<span class="entity entity-module">#{3}</span>`
   }
 
   // ...
@@ -86,9 +94,51 @@ Here's what we just did:
 
 * We instantiated a `Grammar` with a name of `ruby`. (The “main” grammar, the one you export, should be named; other grammars don't need names.) The second argument is an object that defines the grammar's rules.
 * We defined a rule named `keyword`. This rule will replace any matches with the default replacement: placing the entire match inside a `span` tag whose `class` is set to the name of the rule. In this case: `<span class='keyword'>if</span>`.
-* We defined another rule named `entity module`. This rule will replace any matches with the string specified in the `replacement` property — substituting `#{1}` with the first capture, `#{2}` with the second, et cetera. In the replacement string, `#{name}` refers to the name of the rule (`entity module`, in this case).
+* We defined another rule named `module`. This rule will replace any matches with the string specified in the `replacement` property — substituting `#{1}` with the first capture, `#{2}` with the second, et cetera. In the replacement string, `#{name}` refers to the name of the rule (`entity module`, in this case).
 
-  You can use `#{0}` to represent the whole match, but if you're supplying a custom replacement, you'll probably want to divide your pattern up into capture groups. In that case, make sure that all the pattern's parts are captured so that you don't lose anything during transformation.
+
+## Capture groups
+
+Daub aims to support tokenization of capture groups just like the syntax highlighting approaches taken by, say, TextMate or Atom. But those IDEs use the [Oniguruma][] regular expression engine, and I’m using JavaScript’s built-in engine. I can execute a pattern against a string, but the resulting match object will tell me about any capture group matches, but it won’t tell me _where_ they are in the string.
+
+The way around this, as annoying as it is, is to ensure that every part of the pattern is captured in its own group. You can see how this works in the `module` example above.
+
+## The `captures` shorthand
+
+That `module` example, in fact, can be written more tersely:
+
+```javascript
+import { Grammar } from 'daub';
+
+let RUBY = new Grammar('ruby', {
+  // ...
+
+  'module': {
+    pattern: /(module)(\s*)(A-Za-z_\w*)/,
+    captures: {
+      '1': 'keyword',
+      '3': 'entity entity-module'
+    }
+  }
+
+  // ...
+});
+
+export default RUBY;
+```
+
+The `captures` property, if it exists, will be used by Daub to decide how to transform each capture group. The keys are numbered capture groups (starting at `1`) and the values are space-separated strings describing the class names you want to apply. So the string `"module"`, as matched by this rule, will be transformed to `<span class="keyword">module</span>` through the `captures` shorthand.
+
+(This is handled by the `wrap` method in `utils.js`. If a capture group is empty or nonexistent, `wrap` will return an empty string instead of wrapping a `span` tag around nothing.)
+
+## How replacements work
+
+Here’s how Daub decides which kind of replacement to use for a pattern:
+
+1. Have you defined a custom `replacement` property? That’s what Daub will use.
+2. If not, have you defined a `captures` property? Daub will infer that you want to use capture groups, and will default to a simple replacement with the exact number of capture groups that your pattern uses. If your pattern uses four capture groups, Daub will default to a replacement of `#{1}#{2}#{3}#{4}`.
+3. The above strategy is usually the best for captures. But if you have defined a `wrapReplacement` property with a value of `true`, Daub will also wrap the entire match in a container — e.g., `<span class="#{name}">#{1}#{2}#{3}#{4}</span>`.
+4. If none of the above is true, Daub will use the default replacement — `<span class="#{name}">#{0}</span>` — where `#{0}` is the entire text of the match, ignoring capture groups.
 
 ### Write some CSS for the syntax
 
@@ -197,6 +247,22 @@ let MAIN = new Grammar('javascript', {
 });
 ```
 
+Easy enough, but this cries out for a shorthand.
+
+```javascript
+let MAIN = new Grammar('javascript', {
+  'string string-single': {
+    pattern: (/(')(.*?[^\\])(')/),
+    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
+    captures: {
+      '2': ESCAPES
+    }
+  }
+});
+```
+
+Yeah, the same `captures` shorthand we used earlier. When a capture group refers to a string, it’s specifying class names to wrap around the string. But when it refers to an instance of `Grammar`, Daub will understand that you want that match to be parsed with that grammar, and for the result to replace the original match.
+
 This next example is more elaborate: it allows us to highlight the default values in function parameters.
 
 ```javascript
@@ -291,7 +357,7 @@ RUBY.extend(VALUES);
 export default RUBY;
 ```
 
-Hence we don't need to write a grammar to transform Ruby parameters; sometimes the transformations are straightforward enough that they can be done with more conventional string manipulation techniques.
+This is a contrived example, but you get the point. We don’t always need to write a grammar; sometimes the transformations are straightforward enough that they can be done with more conventional string manipulation techniques.
 
 This approach also gives you the flexibility to write rules more generically. For example, in JavaScript, instead of having one rule for named function expressions (`function foo () {}`) and one for anonymous function expressions (`function () {}`), you can define a pattern with an optional capture group and then use a `before` callback to highlight the function name only if it's present.
 
@@ -310,6 +376,8 @@ UH_OH = %Q{
 ```
 
 Ruby's `%Q` literal syntax lets you declare a multi-line string. The literal itself can be delimited with brackets, parentheses, or braces, among other things. But if we use braces, we run into trouble, because we're also using braces inside of the literal.
+
+`thing`
 
 Ruby knows not to end the literal until the braces are balanced. But with a regex, you're stuck. A greedy capture group will match too much, but a non-greedy capture group will match too little.
 
@@ -375,9 +443,6 @@ const HTML = new Grammar({
       if (r[3]) {
         r[3] = ATTRIBUTES.parse(r[3], context);
       }
-      // If the highlighter knows about a grammar named "javascript", it'll
-      // parse the text with that grammar; otherwise it'll return the text
-      // without transformation.
       r[5] = context.highlighter.parse(r[5], 'javascript', context);
     }
   }
@@ -386,7 +451,7 @@ const HTML = new Grammar({
 
 In this example, if the highlighter knows about a grammar named `javascript` — i.e., if one was supplied via `addGrammar` — it'll highlight the contents using that grammar. If not, it'll silently return the text it was given.
 
-Second: you can share state across rules by using the context as a hash. The `Context#set` and `Context#get` methods work almost exactly like those on an ES6 [Map] object, except that `get` takes a second argument for a fallback result.
+Second: you can share state across rules by using the context as a hash. The `Context#set` and `Context#get` methods work almost exactly like those on an ES6 [Map] object, except that `get` takes a second argument for a fallback value.
 
 As an example of how this can be used, here's one way a grammar can resolve ambiguity when parsing tokens with multiple meanings:
 

@@ -1,0 +1,485 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+  <link rel="stylesheet" href="./theme.css"   type="text/css">
+  <link rel="stylesheet" href="./support.css" type="text/css">
+
+  <script src="../dist/daub.js"></script>
+  <script src="./support.js"></script>
+
+  <title>Daub tests</title>
+
+</head>
+
+<body>
+
+<ul id="menu"></ul>
+
+
+<h1 id="react_component">React Component</h1>
+
+<pre><code class="javascript-jsx">
+import React, { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+
+import {
+  default as Thing,
+  other
+} from `../thing`;
+
+class View extends React.Component {
+  render () {
+    let { isClosable } = this.props;
+    if (foo && bar) { doSomething(); }
+    if (bar !== '3') { doSomethingElse(); }
+    return (
+      &lt;div className="WhatTheHell"&gt;
+        {isClosable && &lt;Button onClose={onClose} /&gt;}
+        &lt;div&gt;foo&lt;/div&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+
+function OtherView ({ text }) {
+  return &lt;div&gt;{text}&lt;/div&gt;
+}
+
+export default View;
+</code></pre>
+
+<h1 id="react_component_2">React Component2</h1>
+
+<pre><code class="javascript-jsx">
+function InfoWindow () {
+  return (
+    &lt;InfoWindow onCloseClick={onClose} willOpen={true} width={100} handler={s =&gt; s.state}&gt;
+      &lt;section className="ActivePointInfoWindow"&gt;
+        &lt;header className="ActivePointInfoWindow__point-name"&gt;{shortName}&lt;/header&gt;
+
+        &lt;InfoWindowDirections directions={directions} /&gt;
+        &lt;InfoWindowShops shops={shops} /&gt;
+        &lt;InfoWindowWalkScore walkscore={walkscore} /&gt;
+      &lt;/section&gt;
+    &lt;/InfoWindow&gt;
+  );
+}
+</code></pre>
+
+<h1 id="react_component3">Entire Component</h1>
+
+<pre><code class="javascript-jsx">/* global google */
+import './Main.scss';
+
+import React, { useCallback, useEffect, useRef } from 'react';
+import { useSelector } from 'react-redux';
+import {
+  GoogleMap,
+  useLoadScript
+} from '@react-google-maps/api';
+
+import MAP_STYLES from '../util/map-styles';
+import { setMap } from '../util/map-instance';
+import SECRETS from '../secrets.json';
+
+import ActivePoint from './ActivePoint';
+import DirectionsView from './DirectionsView';
+import RouteLayer from './RouteLayer';
+import ShopView from './ShopView';
+import StopMarkerLayer from './StopMarkerLayer';
+
+const LIBRARIES = ['geometry', 'drawing', 'places'];
+
+function valueOfPoint (point) {
+  if (!point) { return ''; }
+  let { lat, lng } = point;
+
+  return `${lat},${lng}`;
+}
+
+const DEFAULT_MAP_PROPS = {
+  zoom: 12,
+  center: {
+    lat: 34.0407,
+    lng: -118.2468
+  }
+};
+
+const DEFAULT_MAP_OPTIONS = {
+  styles: MAP_STYLES,
+  mapTypeControl: false
+};
+
+function Main ({ loadingElement }) {
+  let mapRef = useRef(null);
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: SECRETS.googleMapsApiKey,
+    libraries: LIBRARIES,
+    version: '3.exp'
+  });
+  if (loadError) {
+    console.error(`ERROR:`, loadError);
+  }
+  const {
+    point: activePoint,
+    shops: activePointShops,
+    shopDirections: activePointShopDirections,
+    stopDirections: activePointStopDirections,
+    walkscore: activePointWalkscore,
+    hoveredShop
+  } = useSelector(state =&gt; state.activePoint);
+
+  const onLoad = useCallback(map =&gt; {
+    setMap(map);
+    mapRef.current = map;
+  }, []);
+
+  // When walking directions come in, move the map to accommodate the origin
+  // and each destination.
+  useEffect(() =&gt; {
+    let { current: map } = mapRef;
+    if (activePointStopDirections === null) { return; }
+    let points = [];
+    const addPoint = p =&gt; {
+      points.push( new google.maps.LatLng(p.location.toJSON()) );
+    };
+    activePointStopDirections.forEach(({ request: d }, index) =&gt; {
+      if (index === 0) { addPoint(d.origin); }
+      addPoint(d.destination);
+    });
+
+    let bounds = new google.maps.LatLngBounds();
+    points.forEach(p =&gt; bounds.extend(p));
+
+    map.fitBounds(bounds);
+  }, [activePointStopDirections]);
+
+  let shopsViews = null;
+  if (activePointShops) {
+    shopsViews = activePointShops.map(shop =&gt; {
+      let isHovered = shop.place_id === hoveredShop;
+      return (
+        &lt;ShopView
+          key={shop.place_id}
+          isHovered={isHovered}
+          shop={shop} /&gt;
+      );
+    });
+  }
+
+  let activePointView = null;
+  if (activePoint) {
+    activePointView = (
+      &lt;ActivePoint
+        key={valueOfPoint(activePoint.position)}
+        point={activePoint}
+        shopDirections={activePointShopDirections}
+        stopDirections={activePointStopDirections}
+        shops={activePointShops}
+        walkscore={activePointWalkscore} /&gt;
+    );
+  }
+
+  let { zoom, center } = DEFAULT_MAP_PROPS;
+  if (!isLoaded) {
+    return (
+      &lt;div className="Main__loading"&gt;Loading...&lt;/div&gt;
+    );
+  }
+  return (
+    &lt;GoogleMap
+      clickableIcons={false}
+      extraMapTypes={[]}
+      mapContainerClassName="Main__map"
+      onLoad={onLoad}
+      zoom={zoom}
+      center={center}
+      options={DEFAULT_MAP_OPTIONS}&gt;
+      &lt;StopMarkerLayer /&gt;
+      &lt;RouteLayer /&gt;
+      {shopsViews}
+      {activePointView}
+      &lt;DirectionsView directions={activePointStopDirections} /&gt;
+    &lt;/GoogleMap&gt;
+  );
+
+}
+
+export default Main;
+</code></pre>
+
+<h1 id="iterators">Iterators</h1>
+
+<pre><code class="javascript-jsx">
+let fibonacci = {
+  [Symbol.iterator]() {
+    let pre = 0, cur = 1;
+    return {
+      next () {
+        [ pre, cur ] = [ cur, pre + cur ];
+        return { done: false, value: cur };
+      }
+    };
+  }
+}
+
+for (let n of fibonacci) {
+  if (n > 1000)
+    break;
+  console.log(n);
+}
+
+</code></pre>
+
+
+<h1 id="symbols">Symbols</h1>
+
+<pre><code class="javascript-jsx">
+
+const foo = Symbol.for("app.foo");
+const bar = Symbol.for("app.bar");
+
+</code></pre>
+
+<h1 id="variables">Variable assignment</h1>
+
+<pre><code class="javascript-jsx">
+let foo = 'bar', baz = { thud: 'troz' },
+  somethingElse = [1, 2, { ['this' + 'thing']: 'is weird' }];
+
+</code></pre>
+
+<h1 id="classes">Classes</h1>
+
+<pre><code class="javascript-jsx">
+
+class Shape {
+  // ...
+  toString () {
+    return `Shape(${this.id})`
+  }
+}
+class Rectangle extends Shape {
+  constructor (id, x, y, width, height) {
+    super(id, x, y);
+    // ...
+  }
+  toString () {
+    return "Rectangle > " + super.toString();
+  }
+
+  set width (newWidth) {
+    this._width = newWidth;
+  }
+
+  get width () {
+    return this._width;
+  }
+
+  static defaultCircle () {
+    return new Circle("default", 0, 0, 100);
+  }
+}
+class Circle extends Shape {
+  constructor (id, x, y, radius) {
+    super(id, x, y);
+    // ...
+  }
+  toString () {
+    return "Circle > " + super.toString();
+  }
+}
+
+class View extends React.Component {
+  render () {
+    return null;
+  }
+}
+
+</code></pre>
+
+<h1 id="numerals">Numerals</h1>
+
+<pre><code class="javascript-jsx">
+
+0b111110111 === 503;
+0o767 === 503;
+
+</code></pre>
+
+<h1 id="promises">Promises</h1>
+
+<pre><code class="javascript-jsx">function timeout(duration = 0) {
+    return new Promise((resolve, reject) => {
+        setTimeout(resolve, duration);
+    });
+}
+
+var p = timeout(1000).then(something => {
+    return timeout(2000);
+}).then(() => {
+    throw new Error("hmm");
+}).catch(err => {
+    return Promise.all([timeout(100), timeout(200)]);
+});</code></pre>
+
+<h1 id="async-await">async/await</h1>
+
+<pre><code class="javascript-jsx">
+let bar = await zort();
+
+async function zort () {
+  return new Promise((resolve, reject) => {
+    // ...
+  });
+}
+
+</code></pre>
+
+<h1 id="templates">Template literals</h1>
+
+<pre><code class="javascript-jsx">
+
+let foo = `bar ${something + 1} baz thud`;
+
+// Basic literal string creation
+`In JavaScript '\n' is a line-feed.`
+
+// Multiline strings
+`In JavaScript this is
+ not legal.`
+
+// String interpolation
+var name = "Bob", time = "today";
+`Hello ${name}, how are you ${time}?`
+
+// Construct an HTTP request prefix is used to interpret the replacements and construction
+POST`http://foo.org/bar?a=${a}&amp;b=${b}
+     Content-Type: application/json
+     X-Credentials: ${credentials}
+     { "foo": ${foo},
+       "bar": ${bar}}`(myOnReadyStateChangeHandler);
+
+var customer = { name: "Foo" };
+var card = { amount: 7, product: "Bar", unitprice: 42 };
+var message = `Hello ${customer.name},
+want to buy ${card.amount} ${card.product} for
+a total of ${something((foo, bar) => foo * bar)} bucks?`;</code></pre>
+
+<h1 id="default-parameters">Default parameters</h1>
+
+<pre><code class="javascript-jsx">
+class CustomHighlighter extends Highlighter {
+  foo (bar, baz) {
+    let wat = (huh, wat=1) => huh + 1;
+    console.log('thud');
+  }
+}
+
+</code></pre>
+
+<h1 id="destructuring">Destructuring</h1>
+
+<pre><code class="javascript-jsx">
+let { blah, zort: troz, [five, six] } = getProps();
+
+let {
+  blah,
+  zort = false,
+  troz: { zort: other }
+} = this.props;
+</code></pre>
+
+<h1 id="fat-arrow">Fat-arrow functions</h1>
+
+<pre><code class="javascript-jsx">
+let wat = (huh, wat=1) => huh + 1;
+
+getThing()
+  .then( e => e.json() )
+  .catch( e => console.log(e) );
+
+</code></pre>
+
+<h1 id="misc">Miscellaneous</h1>
+
+<pre><code class="javascript-jsx">
+let emptyString = "";
+let anotherEmptyString = '';
+
+let ternary = true ? '1' : "2";
+
+let ternary = true ? "2" : '1';
+
+let obj = {
+  shorthand (bar, baz = 1) {
+    return bar + baz;
+  },
+  [dynamicPropertyName]: true,
+  [`someString${index}`] (what, ...args) {
+    return [4, true];
+  },
+  *[Symbol.iterator] () {
+    for (let foo of this) { yield foo; }
+  }
+}
+
+let multiLineTernary = true ?
+  doSomething() :
+  doSomethingElse();
+
+var Try = {
+  these: function(one, two, three, ...rest) {
+    var returnValue;
+
+    // What is this
+
+    for (var i = 0, length = /* ahaha */ arguments.length; i &lt; length; i++) {
+      var lambda = arguments[i];
+      try {
+        returnValue = lambda();
+        break;
+      } catch (e) {
+        /(foo(bar))/.test('aha', 13, 'boo');
+        throw 'This isn\'t what I had in mind.';
+      }
+    }
+
+    return returnValue;
+  }
+};</code></pre>
+
+<pre id="html"><code class="html">&lt;img src="foo.gif" width="1000" height="4" alt="Lorem ipsum dolor." /&gt;
+&lt;ul&gt;
+  &lt;li&gt;Lorem ipsum dolor sit amet. width="1000" (that was a test)&lt;/li&gt;
+
+  &lt;script&gt;var foo = 'bar';&lt;/script&gt;
+
+  &lt;script type="text/javascript"&gt;var foo = '\\bar';&lt;/script&gt;
+
+  &lt;SCRIPT type="text/javascript"&gt;var foo = '\\bar';&lt;/script&gt;
+
+  &lt;script&gt;
+    for (var i = 0, length = arguments.length; i < length; i++) {
+      var lambda = arguments[i];
+      try {
+        returnValue = lambda();
+        break;
+      } catch (e) { }
+    }
+  &lt;/script&gt;
+
+&lt;/ul&gt;</code></pre>
+
+
+
+<script type="text/javascript">
+  Support.setup();
+</script>
+
+</body>
+</html>

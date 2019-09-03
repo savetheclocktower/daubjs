@@ -2,8 +2,6 @@
 /* eslint-disable no-console */
 import strip from 'rollup-plugin-strip';
 import babel from 'rollup-plugin-babel';
-import resolve from 'rollup-plugin-node-resolve';
-import cjs from 'rollup-plugin-commonjs';
 // import uglify from 'rollup-plugin-uglify';
 // import uglifyES from 'rollup-plugin-uglify-es';
 
@@ -23,10 +21,7 @@ console.log('Stripping `console.debug` statements:', shouldStripConsoleStatement
 console.log('Output format:', outputFormat);
 console.log(' -> ', outputFile);
 
-let plugins = [
-  resolve(),
-  cjs()
-];
+let plugins = [];
 
 if (outputFormat !== 'es') {
   plugins.push(
@@ -57,7 +52,6 @@ export default {
   name: 'Daub',
   plugins: plugins,
   output: {
-    name: 'Daub',
     file: outputFile,
     format: outputFormat
   }

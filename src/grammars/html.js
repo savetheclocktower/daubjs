@@ -1,6 +1,92 @@
 import { Grammar, Utils } from '../daub';
+const { balanceByLexer, compact, VerboseRegExp } = Utils;
+import Lexer from '../lexer';
 
-const { compact, VerboseRegExp } = Utils;
+const LEXER_STRING = new Lexer([
+  {
+    name: 'string-escape',
+    pattern: /\\./
+  },
+  {
+    name: 'string-end',
+    pattern: /('|")/,
+    test: (pattern, text, context) => {
+      let char = context.get('string-begin');
+      let match = pattern.exec(text);
+      if (!match) { return false; }
+      if (match[1] !== char) { return false; }
+      context.set('string-begin', null);
+      return match;
+    },
+    final: true
+  }
+]);
+
+const LEXER_ATTRIBUTE_VALUE = new Lexer([
+  {
+    name: 'string-begin',
+    pattern: /^\s*('|")/,
+    test: (pattern, text, context) => {
+      let match = pattern.exec(text);
+      if (!match) { return false; }
+      context.set('string-begin', match[1]);
+      return match;
+    },
+    inside: {
+      name: 'string',
+      lexer: LEXER_STRING
+    }
+  }
+]);
+
+const LEXER_ATTRIBUTE_SEPARATOR = new Lexer([
+  {
+    name: `punctuation`,
+    pattern: /^=/,
+    after: {
+      name: 'attribute-value',
+      lexer: LEXER_ATTRIBUTE_VALUE
+    }
+  }
+]);
+
+const LEXER_TAG = new Lexer([
+  {
+    name: 'tag tag-html',
+    pattern: /^[a-z]+(?=\s)/
+  },
+  {
+    name: 'attribute-name',
+    pattern: /^\s*(?:\/)?[a-z]+(?=\=)/,
+    after: {
+      name: 'attribute-separator',
+      lexer: LEXER_ATTRIBUTE_SEPARATOR
+    }
+  },
+  {
+    // Self-closing tag.
+    name: 'punctuation',
+    pattern: /\/(?:>|&gt;)/,
+    final: true
+  },
+  {
+    // Opening tag end with middle-of-tag context.
+    name: 'punctuation',
+    pattern: /(>|&gt;)/,
+    final: true
+  }
+]);
+
+const LEXER_TAG_START = new Lexer([
+  {
+    name: 'punctuation',
+    pattern: /^(?:<|&lt;)/,
+    after: {
+      name: 'tag',
+      lexer: LEXER_TAG
+    }
+  }
+]);
 
 const ATTRIBUTES = new Grammar({
   string: {
@@ -53,13 +139,16 @@ const MAIN = new Grammar('html', {
   },
 
   'tag tag-open': {
-    pattern: /((?:<|&lt;))([a-zA-Z0-9:]+\s*)(.*?)(\/)?(&gt;|>)/,
+    pattern: /((?:<|&lt;))([a-zA-Z0-9:]+\s*)([\s\S]*)(\/)?(&gt;|>)/,
+    index: (match, ...args) => {
+      return balanceByLexer(match, LEXER_TAG_START);
+    },
     replacement: compact(`
       <span class='element element-opening'>
         <span class='punctuation'>#{1}</span>
         <span class='tag'>#{2}</span>#{3}
         <span class='punctuation'>#{4}#{5}</span>
-      </span>
+      </span>#{6}
     `),
     before: (r, context) => {
       r[3] = ATTRIBUTES.parse(r[3], context);

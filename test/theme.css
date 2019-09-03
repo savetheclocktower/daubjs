@@ -2,11 +2,18 @@ code b {
   font-weight: normal;
 }
 
-code .comment {
+code .debug {
+  background-color: #900;
+  color: #fff;
+}
+
+code .comment,
+.token.comment {
   color: #B0B0B0;
 }
 
-code .string {
+code .string,
+.token.string {
   color: #6f0;
 }
 
@@ -97,11 +104,15 @@ code .regexp .group .group .group .group {
 }
 
 code .embedded {
-  background-color: #444;
+  background-color: rgba(128, 128, 128, 0.35);
 }
 
-code .string-shell-command,
-code .string-template {
+code .embedded .punctuation.embedded-start,
+code .embedded .punctuation.embedded-end {
+  color: #fff;
+}
+
+code .string-shell-command {
   color: #cc3;
 }
 
@@ -109,14 +120,28 @@ code .embedded .interpolation {
   background-color: #222;
 }
 
+code .interpolation > .punctuation {
+  color: #f60;
+}
+
 code .interpolation-contents {
-  color: #fff;
+  /* color: #fff; */
 }
 
 code .element .tag,
-code .element .punctuation,
-code .element .attribute {
+code .element .punctuation {
   color: #f60;
+}
+
+code .tag.tag-jsx {
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 102, 0, 0.25);
+}
+
+code .element .attribute,
+code .element .attribute-name {
+  color: #fc0;
+  font-style: italic;
 }
 
 code.css .property,

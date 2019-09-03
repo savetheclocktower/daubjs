@@ -3,7 +3,11 @@ module.exports = {
     "browser": true,
     "es6": true
   },
+  "plugins": [
+    "unicorn"
+  ],
   "extends": "eslint:recommended",
+  "parser": "babel-eslint",
   "parserOptions": {
     "sourceType": "module"
   },
@@ -21,6 +25,17 @@ module.exports = {
       "always"
     ],
     "no-useless-escape": "off",
-    "no-cond-assign": "off"
+    "no-cond-assign": "off",
+    "no-unused-vars": "off",
+    "no-console": [
+      "warn",
+      {
+        "allow": ["debug", "error"]
+      }
+    ],
+
+    'unicorn/custom-error-definition': 'error',
+    'unicorn/no-new-buffer': 'error',
+    'unicorn/prefer-type-error': 'error'
   }
 };

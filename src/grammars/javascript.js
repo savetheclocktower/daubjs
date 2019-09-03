@@ -71,19 +71,7 @@ const PARAMETERS = new Grammar({
   }
 });
 
-let VALUES = new Grammar({
-  constant: {
-    pattern: /\b(?:arguments|this|false|true|super|null|undefined)\b/
-  },
-
-  'number number-binary-or-octal': {
-    pattern: /0[bo]\d+/
-  },
-
-  number: {
-    pattern: /(?:\d*\.?\d+)/,
-  },
-
+let STRINGS = new Grammar({
   'string string-template embedded': {
     pattern: /(`)([^`]*)(`)/,
     replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
@@ -104,7 +92,7 @@ let VALUES = new Grammar({
       r[2] = ESCAPES.parse(r[2], context);
     }
   },
-  
+
   'string string-double-quoted': {
     // In capture group 2 we want zero or more of:
     // * any non-quotes and non-backslashes OR
@@ -115,7 +103,23 @@ let VALUES = new Grammar({
     before: (r, context) => {
       r[2] = ESCAPES.parse(r[2], context);
     }
+  }
+});
+
+let VALUES = new Grammar({
+  constant: {
+    pattern: /\b(?:arguments|this|false|true|super|null|undefined)\b/
   },
+
+  'number number-binary-or-octal': {
+    pattern: /0[bo]\d+/
+  },
+
+  number: {
+    pattern: /(?:\d*\.?\d+)/,
+  },
+
+  ...STRINGS.toObject(),
 
   comment: {
     pattern: /(\/\/[^\n]*\n)|(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/
@@ -151,7 +155,9 @@ MAIN.extend({
     pattern: /\$\d/,
     replacement: "#{0}"
   },
-  
+
+
+
   // So that properties with keyword names don't get treated like keywords.
   'meta: properties with keyword names': {
     pattern: /(\.)(for|if|while|switch|catch|return)\b/,
@@ -295,7 +301,7 @@ MAIN.extend({
         (\s+)                # 4: space
         (extends)            # 5: storage
         (\s+)                # 6: space
-        ([A-Z][A-Za-z0-9_]*) # 7: superclass name
+        ([A-Z][A-Za-z0-9_$\.]*) # 7: superclass name
       )?                     # end optional 'extends' keyword
       (\s*)                  # 8: space
       ({)                    # 9: opening brace

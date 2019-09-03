@@ -53,18 +53,36 @@ function walkDirectory (pathName) {
 
 walkDirectory(SRC_PATH);
 
+function ignoreRoot (id) {
+  console.log('external?', id);
+  return (/daub$/).test(id);
+}
+
+
 let configs = paths.map((p) => {
   let relative = p.replace(__dirname, '.');
   let lib = path.resolve(__dirname, 'lib');
+  let external = [];
   if ( !fs.existsSync(lib) ) { fs.mkdirSync(lib); }
+  
+  let globals = {};
 
   let name = path.basename(p, '.js');
   name = name.replace(/-/g, '_');
+  // let globalName = name;
+  if (name !== 'daub') {
+    external = ignoreRoot;
+    globals = { [SRC_PATH + '/daub']: 'daub' };
+    console.log('globals:', globals);
+    name = `daub.${name}`;
+  }
   let output = relative.replace(/^\.\/src/, './lib');
   return {
     input: p,
     name,
     plugins: plugins,
+    external: external,
+    globals: globals,
     output: {
       file: output,
       format: 'umd'

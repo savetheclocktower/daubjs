@@ -1,4 +1,8 @@
+import "core-js/stable";
+import "regenerator-runtime/runtime";
+
 import * as Utils from './utils';
+import Lexer from './lexer';
 
 function _regexToString (re) {
   let str = re.toString();
@@ -141,10 +145,11 @@ class Template {
       if (match == null) return before;
 
       while (match != null) {
-        let comp = match[1].startsWith('[') ? match[2].gsub('\\\\]', ']') : match[1];
+        let comp = match[1].charAt(0) === '[' ?
+          match[2].replace(/\\]/, ']') : match[1];
         ctx = ctx[comp];
-        if (null == ctx || '' == match[3]) break;
-        expr = expr.substring('[' == match[3] ? match[1].length : match[0].length);
+        if (ctx == null || match[3] === '') { break; }
+        expr = expr.substring('[' === match[3] ? match[1].length : match[0].length);
         match = pattern.exec(expr);
       }
 
@@ -272,6 +277,13 @@ class Highlighter {
 
 Highlighter.DEFAULT_OPTIONS = { classPrefix: '' };
 
+class ParseError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ParseError';
+  }
+}
+
 class Grammar {
   constructor (name, rules, options = {}) {
     if (typeof name === 'object' && !rules) {
@@ -288,13 +300,19 @@ class Grammar {
     this.options = options;
     this.rules = [];
 
+    this._originalRules = rules;
+
     this.extend(rules);
+  }
+
+  _toObject () {
+    return { ...this._originalRules };
   }
 
   parse (text, context = null) {
     let pattern = this.pattern;
     pattern.lastIndex = 0;
-    
+
     // eslint-disable-next-line
     console.debug(`Parsing ${this.name || ''}`, { pattern, text });
 
@@ -307,10 +325,7 @@ class Grammar {
           j += rule.length;
           continue;
         }
-
-        if (rule.debug) {
-          console.log('DEBUG MATCH:', text.slice(0, 100));
-        }
+        console.debug('MATCH rule:', rule, match[j]);
 
         if (rule.index) {
           // The rule is saying that it might decide that it wants to parse
@@ -333,7 +348,7 @@ class Grammar {
             source = source.slice(0, match.index + index);
             match = pattern.exec(source);
             if (!match || !match[j]) {
-              let err = new Error(`Bad "index" callback; requested substring did not match original rule.`);
+              let err = new ParseError(`Bad "index" callback; requested substring did not match original rule.`);
               Object.assign(err, { rule, source, match, index: actualLength });
               throw err;
             }
@@ -346,6 +361,25 @@ class Grammar {
         }
 
         replacements.name = rule.name;
+
+        if (rule.captures) {
+          for (let i = 0; i < replacements.length; i++) {
+            if (!(i in rule.captures)) { continue; }
+            let captureValue = rule.captures[i];
+            if (typeof captureValue === 'function') {
+              captureValue = captureValue();
+            }
+            if (typeof captureValue === 'string') {
+              // A string capture just specifies the class name(s) this token
+              // should have. We'll wrap it in a `span` tag.
+              replacements[i] = Utils.wrap(replacements[i], captureValue);
+            } else if (captureValue instanceof Grammar) {
+              // A grammar capture tells us to parse this string with the
+              // grammar in question.
+              replacements[i] = captureValue.parse(replacements[i], context);
+            }
+          }
+        }
 
         if (rule.before) {
           let beforeResult = rule.before(replacements, context);
@@ -374,7 +408,6 @@ class Grammar {
         if (typeof actualLength !== 'undefined') {
           return [result, index];
         }
-
         return result;
       }
 
@@ -452,6 +485,11 @@ class Rule {
     let r = rule.replacement;
     if (r) {
       this.replacement = r instanceof Template ? r : new Template(r);
+    } else if (rule.captures) {
+      // If captures are defined, that means this pattern defines groups. We
+      // want a different default template that breaks those groups out. But we
+      // won't actually make it until we know how many groups the pattern has.
+      this.replacement = null;
     } else {
       this.replacement = Rule.DEFAULT_TEMPLATE;
     }
@@ -460,7 +498,9 @@ class Rule {
     this.before = rule.before;
     this.after  = rule.after;
     this.index  = rule.index;
+    this.captures = rule.captures;
 
+    let originalPattern = rule.pattern;
     let pattern = rule.pattern;
     if (typeof pattern !== 'string') {
       pattern = _regexToString(pattern);
@@ -470,9 +510,10 @@ class Rule {
     // this is ridiculous.
     pattern = pattern.replace(/\\(\d+)/g, (m, d) => {
       let group = Number(d);
+      let newGroup = (prevCaptures + group + 1);
       // Adjust for the number of groups that already exist, plus the
       // surrounding set of parentheses.
-      return `\\${prevCaptures + group + 1}`;
+      return `\\${newGroup}`;
     });
 
     // Count all open parentheses.
@@ -491,26 +532,46 @@ class Rule {
     // capturing group.
     this.length = (parens + 1) - exceptions;
     this.pattern = `(${pattern})`;
+    this.originalPattern = originalPattern;
+
+    if (!this.replacement) {
+      this.replacement = Rule.makeReplacement(this.length, rule.wrapReplacement);
+    }
   }
 
   toObject() {
-    // Trim the enclosing parentheses from the pattern.
-    let pattern = this.pattern.substring(
-      1, this.pattern.length - 1);
     return {
-      pattern: pattern,
+      // Export the original pattern, not the one we transformed. It'll need to
+      // be re-transformed in its new context.
+      pattern: this.originalPattern,
       replacement: this.replacement,
       before: this.before,
       after: this.after,
-      index: this.index
+      index: this.index,
+      captures: this.captures
     };
   }
 }
 
 Rule.DEFAULT_TEMPLATE = new Template('<span class="#{name}">#{0}</span>');
 
+Rule.makeReplacement = (length, wrap) => {
+  let arr = [];
+  for (let i = 1; i < length; i++) {
+    arr.push(i);
+  }
+  let captures = arr.join(`}#{`);
+  captures = `#{${captures}}`;
+  let contents = wrap ?
+    `<span class="#{name}">${captures}</span>` :
+    captures;
+  return new Template(contents);
+};
+
 export {
   Utils,
+  Context,
   Grammar,
-  Highlighter
+  Highlighter,
+  Lexer
 };
