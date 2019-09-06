@@ -2,13 +2,11 @@
   "name": "daub",
   "version": "0.1.0",
   "description": "Syntax highlighting in the browser.",
-  "main": "dist/cjs/daub.js",
-  "module": "dist/esm/index.js",
+  "main": "dist/daub.cjs.js",
+  "module": "dist/daub.esm.js",
   "browser": "dist/daub.umd.js",
   "dependencies": {
-    "babel-plugin-prismjs": "^1.1.1",
-    "core-js": "^3.2.1",
-    "regenerator-runtime": "^0.13.3"
+    "core-js": "^3.2.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.5.5",
@@ -26,6 +24,7 @@
     "rollup-plugin-commonjs": "^10.0.2",
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-strip": "^1.2.2",
+    "rollup-plugin-terser": "^5.1.1",
     "rollup-plugin-uglify": "^6.0.2",
     "rollup-plugin-uglify-es": "0.0.1"
   },

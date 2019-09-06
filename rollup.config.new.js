@@ -5,6 +5,8 @@ import cjs from 'rollup-plugin-commonjs';
 import babel from 'rollup-plugin-babel';
 import strip from 'rollup-plugin-strip';
 
+import { terser } from 'rollup-plugin-terser';
+
 import PACKAGE from './package.json';
 
 let extraPlugins = [];
@@ -15,7 +17,8 @@ if (!process.env.DEBUG) {
       debugger: true,
       functions: ['console.debug'],
       sourceMap: false
-    })
+    }),
+    terser()
   );
 }
 
@@ -67,13 +70,12 @@ export default [
   },
 
   {
-    input: {
-      index: 'src/all.js',
-      grammars: 'src/grammars/index.js'
-    },
+    input: './src/all.js',
     output: [
-      { dir: 'dist/esm', format: 'esm' },
-      { dir: 'dist/cjs', format: 'cjs' }
+      { file: PACKAGE.module, format: 'esm' },
+      { file: PACKAGE.main,   format: 'cjs' }
+      // { dir: 'dist/esm', format: 'esm' },
+      // { dir: 'dist/cjs', format: 'cjs' }
       //
       // { name: 'daub', file: PACKAGE.main, format: 'cjs' },
       // { name: 'daub', file: PACKAGE.module, format: 'esm' }
