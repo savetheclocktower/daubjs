@@ -1,6 +1,6 @@
 import { Utils, Grammar } from '../daub';
 
-const { balance, compact, VerboseRegExp } = Utils;
+const { balance, compact, VerboseRegExp, wrap } = Utils;
 
 function includes (str, pattern) {
   return str.indexOf(pattern) > -1;
@@ -38,7 +38,9 @@ function rejoinHash (parts, startIndex, endIndex) {
   return result.join(',');
 }
 
-function parseParameters(str, grammar, context) {
+// Syntax is permissive enough in Ruby that it's quite hard to parse parameters
+// as a group. Much easier to try to split them and parse each one individually.
+function parseParameters (str, grammar, context) {
   if (!grammar) grammar = PARAMETERS;
 
   let rawParts = str.split(/,/), parameters = [];
@@ -83,7 +85,6 @@ const PARAMETERS = new Grammar({
 const BLOCK_PARAMETERS = new Grammar({
   'meta: block variable': {
     pattern: (/^(\s*)([A-Za-z0-9_]+)$/),
-    replacement: "#{1}<span class='#{name}'>#{2}</span>",
     captures: {
       '2': 'variable parameter'
     }
@@ -250,14 +251,24 @@ const MAIN = new Grammar('ruby', {
     }
   },
 
+  // For blocks, we don't try to capture the entire contents of the block in a
+  // rule. But we mark where it starts and then push onto a stack in context so
+  // we can keep track of where the block must end later on.
   'block block-braces': {
-    pattern: /(\{)(\s*)(\|)([^|]*?)(\|)/,
+    pattern: VerboseRegExp`
+      (\{)     # 1: opening brace
+      (\s*)    # 2: space
+      (\|)     # 3: begin parameters
+      ([^|]*?) # 4: contents of parameters
+      (\|)     # 5: end parameters
+    `,
+    // pattern: /(\{)(\s*)(\|)([^|]*?)(\|)/,
     replacement: compact(`
       <b class='#{name}'>
-        <span class='punctuation brace'>#{1}</span>#{2}
-        <span class='punctuation pipe'>#{3}</span>
+        <span class='punctuation'>#{1}</span>#{2}
+        <span class='punctuation'>#{3}</span>
         #{4}
-        <span class='punctuation pipe'>#{5}</span>
+        <span class='punctuation'>#{5}</span>
     `),
     before: (r, context) => {
       // Keep a LIFO stack of block braces. When we encounter a brace that
@@ -271,18 +282,18 @@ const MAIN = new Grammar('ruby', {
 
   'block block-do-end': {
     pattern: VerboseRegExp`
-      (do)         # keyword
-      (\s*)
-      (\|)         # opening pipe
-      ([^|]*?)     # params
-      (\|)         # closing pipe
+      (do)         # 1: keyword
+      (\s*)        # 2: space
+      (\|)         # 3: begin parameters
+      ([^|]*?)     # 4: parameters
+      (\|)         # 5: end parameters
     `,
     replacement: compact(`
       <b class='#{name}'>
-        <span class='keyword'>#{1}</span>#{2}
-        <span class='punctuation pipe'>#{3}</span>
+        <span class='keyword keyword-do'>#{1}</span>#{2}
+        <span class='punctuation'>#{3}</span>
         #{4}
-        <span class='punctuation pipe'>#{5}</span>
+        <span class='punctuation'>#{5}</span>
     `),
     before: (r, context) => {
       // Keep a LIFO stack of block braces. When we encounter a brace that
@@ -297,28 +308,37 @@ const MAIN = new Grammar('ruby', {
 
   'meta: class definition with superclass': {
     pattern: VerboseRegExp`
-      (class)               # keyword
-      (\s+)
-      ([A-Z][A-Za-z0-9_]*)  # class name
-      (\s*(?:<|&lt;)\s*)    # inheritance symbol, encoded or not
-      ([A-Z][A-Za-z0-9:_]*) # superclass
+      (class)               # 1: keyword
+      (\s+)                 # 2: space
+      ([A-Z][A-Za-z0-9_]*)  # 3: class name
+      (\s*(?:<|&lt;)\s*)    # 4: inheritance symbol, encoded or not
+      ([A-Z][A-Za-z0-9:_]*) # 5: superclass
     `,
     replacement: compact(`
-      <span class='keyword'>#{1}</span>#{2}
-      <span class='class-definition-signature'>
-        <span class='class'>#{3}</span>#{4}<span class='class superclass'>#{5}</span>
-      </span>
+      <span class='keyword keyword-class'>#{1}</span>#{2}
+      <span class='entity entity-class'>#{3}</span>
+      <span class='punctuation'>#{4}</span>
+      <span class='entity entity-class entity-superclass'>#{5}</span>
     `)
   },
 
   'meta: class or module definition': {
-    pattern: /(class|module)(\s+)([A-Z][A-Za-z0-9_]*)\s*(?=$|\n)/,
+    pattern: VerboseRegExp`
+      (class|module) # 1: keyword
+      (\s+)          # 2: space
+      ([A-Z][\w\d]*) # 3: name
+      (\s*)          # 4: space
+      (?=$|\n)       # lookahead: end of line or end of string
+    `,
+    // pattern: /(class|module)(\s+)([A-Z][A-Za-z0-9_]*)\s*(?=$|\n)/,
     replacement: compact(`
-      <span class='keyword'>#{1}</span>#{2}
-      <span class='class-definition-signature'>
-        <span class='class'>#{3}</span>
-      </span>
-    `)
+      #{1}#{2}#{3}#{4}
+    `),
+    before (m, context) {
+      let classOrModule = m[1];
+      m[1] = wrap(m[1], `keyword keyword-${classOrModule}`);
+      m[3] = wrap(m[3], `entity entity-${classOrModule}`);
+    }
   },
 
   'string heredoc-indented': {

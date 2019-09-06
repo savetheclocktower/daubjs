@@ -57,6 +57,28 @@ foo.map { |id| "/spots/#{id}" }
 end
 </code></pre>
 
+<h1 id="classes-and-modules">Classes and modules</h1>
+
+<pre><code class="ruby" data-lines="3-5">
+class Item < ActiveRecord::Base
+
+  def do_something(foo, bar = :baz)
+    puts `Thing! #{foo}`
+  end
+
+end
+
+module Foo
+
+  class << self
+    def static_method(zort)
+      puts zort
+    end
+  end
+
+end
+</code></pre>
+
 <h1 id="nested-blocks">Nested blocks</h1>
 
 <pre><code class="ruby">
