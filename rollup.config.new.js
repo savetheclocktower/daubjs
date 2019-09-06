@@ -47,38 +47,33 @@ export default [
   },
 
   // Web worker.
-  {
-    input: 'src/worker.js',
-    output: {
-      name: 'daub',
-      file: 'dist/daub.worker.umd.js',
-      format: 'umd'
-    },
-    plugins: [
-      resolve(),
-      cjs({
-        include: [
-          './src/utils/verbose-regexp.js'
-        ]
-      }),
-      babel({
-        // Only transpile our source code.
-        exclude: 'node_modules/**',
-      }),
-      ...extraPlugins
-    ]
-  },
+  // {
+  //   input: 'src/worker.js',
+  //   output: {
+  //     name: 'daub',
+  //     file: 'dist/daub.worker.umd.js',
+  //     format: 'umd'
+  //   },
+  //   plugins: [
+  //     resolve(),
+  //     cjs({
+  //       include: [
+  //         './src/utils/verbose-regexp.js'
+  //       ]
+  //     }),
+  //     babel({
+  //       // Only transpile our source code.
+  //       exclude: 'node_modules/**',
+  //     }),
+  //     ...extraPlugins
+  //   ]
+  // },
 
   {
     input: './src/all.js',
     output: [
       { file: PACKAGE.module, format: 'esm' },
       { file: PACKAGE.main,   format: 'cjs' }
-      // { dir: 'dist/esm', format: 'esm' },
-      // { dir: 'dist/cjs', format: 'cjs' }
-      //
-      // { name: 'daub', file: PACKAGE.main, format: 'cjs' },
-      // { name: 'daub', file: PACKAGE.module, format: 'esm' }
     ],
     plugins: [
       resolve(),

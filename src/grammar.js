@@ -29,7 +29,6 @@ class Grammar {
     this.extend(rules);
     if (this.name) {
       this.names.forEach(name => {
-        console.log('REGISTERING:', name, this);
         Grammar.register(name, this);
       });
     }
