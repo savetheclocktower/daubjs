@@ -46,7 +46,7 @@ class AsyncHighlighter {
     return language;
   }
 
-  scan () {
+  highlight () {
     console.log('AsyncHighlighter#scan');
     let selector = `code:not([data-daub-highlighted])`;
     let nodes = Array.from(
