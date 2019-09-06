@@ -1,3 +1,30 @@
+
+// LINE HIGHLIGHTER
+// ================
+
+// Allows you to highlight particular lines in your code blocks by annotating
+// your `pre` or `code` with `data-lines` attributes.
+//
+// <pre data-lines="3">  (will highlight the third line)
+//
+// <pre data-lines="3,5"> (will highlight the third and fifth lines)
+// <pre data-lines="3, 5-7, 10-12"> (you get the idea)
+//
+// The plugin will figure out the necessary plumbing CSS; all you need to do is
+// style the class `daub-line-highlight` with a `background-color` of your
+// choice. But make sure it's an `rgba` value with a low alpha; an opaque
+// `background-color` will cover your code entirely.
+//
+//
+// CAVEATS:
+//
+// * Ensure your preformatted lines are of a fixed height; don't do weird stuff
+//   with font size such that your line-height can vary from line to line.
+//
+// * If you're also using the whitespace-normalizer plugin, make sure the
+//   values in `data-lines` refer to the line numbers _after_ normalization, not
+//   before.
+//
 function getLineHeight (el) {
   let style = getComputedStyle(el);
   return parseFloat(style.lineHeight);
@@ -79,6 +106,7 @@ function handler (event) {
 
 function init () {
   document.addEventListener('daub-will-highlight', handler);
+  return cleanup;
 }
 
 function cleanup () {

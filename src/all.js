@@ -39,12 +39,17 @@ const GRAMMARS = {
   Shell
 };
 
-import pluginWhitespaceNormalizer from './plugins/whitespace-normalizer';
-import pluginLineHighligher from './plugins/line-highlighter';
+import WhitespaceNormalizer from './plugins/whitespace-normalizer';
+import LineHighlighter from './plugins/line-highlighter';
+
+const PLUGINS = {
+  WhitespaceNormalizer,
+  LineHighlighter
+};
 
 const PLUGIN_MAP = {
-  'whitespace-normalizer': pluginWhitespaceNormalizer,
-  'line-highlighter': pluginLineHighligher
+  'whitespace-normalizer': WhitespaceNormalizer,
+  'line-highlighter': LineHighlighter
 };
 //
 // let highlighter = new Daub.Highlighter();
@@ -83,6 +88,7 @@ function init ({
 
 export {
   GRAMMARS,
+  PLUGINS,
 
   Context,
   Grammar,

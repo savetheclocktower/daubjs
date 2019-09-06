@@ -1,4 +1,23 @@
 
+// WHITESPACE NORMALIZER
+// =====================
+//
+// Trims any leading and trailing newlines from inside of a `pre > code`
+// element. This lets you write your HTML like this:
+//
+// <pre><code>
+// function foo () {
+//   return "bar";
+// }
+// </code></pre>
+//
+// Instead of this:
+//
+// <pre><code>function foo () {
+//   return "bar";
+// }</code></pre>
+//
+
 // Given a document fragment, find the first text node in the tree,
 // depth-first, or `null` if none is found.
 function findFirstTextNode (fragment) {
@@ -66,6 +85,7 @@ function handler (event) {
 
 function init () {
   document.addEventListener('daub-will-highlight', handler);
+  return cleanup;
 }
 
 function cleanup () {
