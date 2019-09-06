@@ -15,23 +15,30 @@ let findFirstThatIsNotPrecededBy = (token, notToken, string, startIndex) => {
 const FUNCTIONS = new Grammar({
   'support support-function-call support-function-call-css-builtin': {
     pattern: /(attr|counter|rgb|rgba|hsl|hsla|calc)(\()(.*)(\))/,
-    replacement: "<span class='#{name}'>#{1}</span><span class='punctuation'>#{2}</span>#{3}<span class='punctuation'>#{4}</span>",
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}",
+    captures: {
+      '2': 'punctuation',
+      '3': () => VALUES,
+      '4': 'punctuation'
     }
   },
   'support support-function-call support-function-call-sass': {
     pattern: /(red|green|blue|mix|hue|saturation|lightness|adjust-hue|lighten|darken|saturate|desaturate|grayscale|complement|invert|alpha|opacity|opacify|transparentize|fade-in|fade-out|selector-(?:nest|replace)|unquote|quote|str-(?:length|insert|index|slice)|to-(?:upper|lower)-case|percentage|round|ceil|floor|abs|min|max|random|(?:feature|variable|global-variable|mixin)-exists|inspect|type-of|unit|unitless|comparable|call|if|unique-id)(\()(.*)(\))/,
-    replacement: "<span class='#{name}'>#{1}</span><span class='punctuation'>#{2}</span>#{3}<span class='punctuation'>#{4}</span>",
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}",
+    captures: {
+      '2': 'punctuation',
+      '3': () => VALUES,
+      '4': 'punctuation'
     }
   },
 
   'support support-function-call support-function-call-url': {
     pattern: /(url)(\()(.*)(\))/,
     index: (match) => {
-      return balance(match, ')', '(', { startIndex: match.indexOf('(') });
+      return balance(
+        match, ')', '(',
+        { startIndex: match.indexOf('(') }
+      );
     },
     replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}",
     before: (r, context) => {
@@ -48,9 +55,11 @@ const FUNCTIONS = new Grammar({
 
   'support support-function-call support-function-call-custom': {
     pattern: /([A-Za-z_-][A-Za-z0-9_-]*)(\()(.*)(\))/,
-    replacement: "<span class='#{name}'>#{1}</span><span class='punctuation'>#{2}</span>#{3}<span class='punctuation'>#{4}</span>",
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}",
+    captures: {
+      '2': 'punctuation',
+      '3': () => VALUES,
+      '4': 'punctuation'
     }
   }
 });
@@ -58,10 +67,12 @@ const FUNCTIONS = new Grammar({
 const INTERPOLATIONS = new Grammar({
   interpolation: {
     pattern: /(\#\{)(.*?)(})/,
-    replacement: "<span class='interpolation'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = VALUES.parse(r[2], context);
-    }
+    captures: {
+      '1': 'punctuation interpolation-begin',
+      '2': () => VALUES,
+      '3': 'punctuation interpolation-end'
+    },
+    wrapReplacement: true
   }
 });
 
@@ -71,26 +82,17 @@ function variableRuleNamed (name) {
   });
 }
 
-const VARIABLE = new Grammar({
-  'variable': {
-    pattern: /\$[A-Za-z0-9_-]+/
-  }
-});
+const VARIABLE = variableRuleNamed('variable');
 
 const VARIABLES = new Grammar({
   'variable variable-assignment': {
     // NOTE: This is multiline. Will search until it finds a semicolon, even if it's not on the same line.
     pattern: /(\s*)(\$[A-Za-z][A-Za-z0-9_-]*)\b(\s*)(\:)([\s\S]*?)(;)/,
-    replacement: compact(`
-      #{1}
-      <span class='#{name}'>#{2}</span>#{3}
-      <span class='punctuation'>#{4}</span>
-      #{5}#{6}
-    `),
-    // replacement: "#{1}<span class='#{name}'>#{2}</span>#{3}<span class='punctuation'>#{4}</span>#{5}#{6}",
-    before: (r, context) => {
-      r[5] = VALUES.parse(r[5], context);
-    }
+    captures: {
+      '2': 'variable variable-assignment',
+      '4': 'punctuation',
+      '5': () => VALUES,
+    },
   }
 }).extend(VARIABLE);
 
@@ -99,13 +101,13 @@ const PARAMETERS = new Grammar({
     pattern: /(\$[A-Za-z][A-Za-z0-9_-]*)(\s*:\s*)(.*?)(?=,|\)|\n)/,
     replacement: compact(`
       <span class="parameter">
-        <span class="variable">#{1}</span>
-        <span class="punctuation">#{2}</span>
-      #{3}
+        #{1}#{2}#{3}
       </span>
     `),
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    captures: {
+      '1': 'variable',
+      '2': 'punctuation',
+      '3': () => VALUES
     }
   }
 }).extend( variableRuleNamed('variable parameter') );
@@ -131,10 +133,15 @@ const SELECTORS = new Grammar({
 
   'selector selector-pseudo selector-pseudo-not': {
     pattern: /(:not\()(.*)(\))/,
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = SELECTORS.parse(r[2], context);
-      r[2] = `<span class='parameter'>${r[2]}</span>`;
+    replacement: compact(`
+      <span class='#{name}'>
+        #{1}
+        <span class='parameter'>#{2}</span>
+        #{3}
+      </span>
+    `),
+    captures: {
+      '2': () => SELECTORS
     }
   },
 
@@ -142,18 +149,17 @@ const SELECTORS = new Grammar({
     pattern: /(?:&amp;|&)(?:__|--)(?:[A-Za-z0-9_-]+)?/
   },
 
-  'selector selector-with-interpolation': {
+  'selector selector-interpolation': {
     pattern: /(#\{)(.*)(\})/,
     index: (match) => {
       return balance(
         match, '}', '{', { startIndex: match.indexOf('{') }
       );
     },
-    replacement: "<span class='selector interpolation'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = VALUES.parse(r[2], context);
+    wrapReplacement: true,
+    captures: {
+      '2': () => VALUES
     }
-
   },
 
   'selector selector-self-reference': {
@@ -162,9 +168,9 @@ const SELECTORS = new Grammar({
 
   'selector selector-pseudo selector-pseudo-with-args': {
     pattern: /((?:\:+)\b(?:lang|nth-(?:last-)?child|nth-(?:last-)?of-type))(\()(.*)(\))/,
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}#{4}</span>",
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    wrapReplacement: true,
+    captures: {
+      '3': () => VALUES
     }
   },
 
@@ -192,10 +198,9 @@ const SELECTORS = new Grammar({
       )?                 # end operator-and-value (optional)
       (\])               # 6: closing bracket
     `,
-    // pattern: /(\[)([A-Za-z_-][A-Za-z0-9_-]*)(?:([~\.$^]?=)((['"])(?:.*?)(?:\5)|[^\s\]]))?(\])/,
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}#{4}#{6}</span>",
-    before: (r, context) => {
-      r[4] = STRINGS.parse(r[4], context);
+    wrapReplacement: true,
+    captures: {
+      '4': () => STRINGS
     }
   },
 
@@ -207,16 +212,19 @@ const SELECTORS = new Grammar({
 
 const MAPS = new Grammar({
   'meta: map pair': {
-    // Property, then colon, then any value. Line terminates with a comma,
-    // a newline, or the end of the string (but not a semicolon).
+    // Property, then colon, then any value. Line terminates with a comma, a
+    // newline, or the end of the string (but not a semicolon).
     pattern: /([a-zA-Z_-][a-zA-Z0-9_-]*)(\s*:\s*)(.*(?:,|\)|$))/,
-    replacement: "<span class='entity'>#{1}</span>#{2}#{3}",
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    captures: {
+      '1': 'entity',
+      '2': 'punctuation',
+      '3': () => VALUES
     }
   }
 });
 
+// Split out because it's the one operator that gets used in @media and
+// @supports queries.
 const OPERATOR_LOGICAL = new Grammar({
   'operator operator-logical': {
     pattern: /\b(and|or|not)\b/
@@ -285,7 +293,10 @@ const VALUES = new Grammar({
         %          # a percentage
       )
     `,
-    replacement: "<span class='number'>#{1}</span>#{2}<span class='unit'>#{3}</span>"
+    captures: {
+      '1': 'number',
+      '3': 'unit'
+    }
   }
 }).extend(OPERATORS, VARIABLE);
 
@@ -299,17 +310,17 @@ const NUMBERS = new Grammar({
 const STRINGS = new Grammar({
   'string single-quoted': {
     pattern: (/(')([^']*?)(')/),
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = INTERPOLATIONS.parse(r[2], context);
+    wrapReplacement: true,
+    captures: {
+      '2': INTERPOLATIONS
     }
   },
 
   'string double-quoted': {
     pattern: (/(")(.*?[^\\])(")/),
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = INTERPOLATIONS.parse(r[2], context);
+    wrapReplacement: true,
+    captures: {
+      '2': INTERPOLATIONS
     }
   },
 
@@ -339,13 +350,18 @@ const DIRECTIVES = new Grammar({
 });
 
 
-VALUES.extend(FUNCTIONS, STRINGS, COLORS, NUMBERS, DIRECTIVES);
-
-VALUES.extend({
-  'support': {
-    pattern: /\b([\w-]+)\b/
+VALUES.extend(
+  FUNCTIONS,
+  STRINGS,
+  COLORS,
+  NUMBERS,
+  DIRECTIVES,
+  {
+    'support': {
+      pattern: /\b([\w-]+)\b/
+    }
   }
-});
+);
 
 const COMMENTS = new Grammar({
   'comment comment-line': {
@@ -359,9 +375,9 @@ const COMMENTS = new Grammar({
 const PROPERTIES = new Grammar({
   'meta: property pair': {
     pattern: /([\-a-z]+)(\s*:\s*)([^;]+)(;)/,
-    replacement: `<span class="property">#{1}</span>#{2}#{3}#{4}`,
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    captures: {
+      '1': 'property',
+      '3': () => VALUES
     }
   }
 });
@@ -375,8 +391,8 @@ const INSIDE_AT_RULE_MEDIA = new Grammar({
   'meta: property group': {
     pattern: /(\()(.*)(\))/,
     replacement: "#{1}#{2}#{3}",
-    before: (r, context) => {
-      r[2] = MEDIA_AT_RULE_PROP_PAIR.parse(r[2], context);
+    captures: {
+      '2': () => MEDIA_AT_RULE_PROP_PAIR
     }
   }
 }).extend(OPERATOR_LOGICAL);
@@ -385,25 +401,28 @@ const INSIDE_AT_RULE_IF = new Grammar({}).extend(
   FUNCTIONS, OPERATORS, VALUES);
 
 const INSIDE_AT_RULE_INCLUDE = new Grammar({
-}).extend(PARAMETERS, VALUES);
-
-INSIDE_AT_RULE_INCLUDE.extend({
-  'string string-unquoted': {
-    pattern: /\b\w+\b/
+}).extend(
+  PARAMETERS,
+  VALUES,
+  {
+    'string string-unquoted': {
+      pattern: /\b\w+\b/
+    }
   }
-});
+);
 
 const INSIDE_AT_RULE_KEYFRAMES = new Grammar({
   'meta: from/to': {
     pattern: /\b(from|to)\b(\s*)(?={)/,
-    replacement: "<span class='keyword'>#{1}</span>#{2}"
+    captures: {
+      '1': 'keyword'
+    }
   },
 
   'meta: percentage': {
     pattern: /(\d+%)(\s*)(?={)/,
-    replacement: "#{1}#{2}",
-    before: (r, context) => {
-      r[1] = VALUES.parse(r[1], context);
+    captures: {
+      '1': () => VALUES
     }
   }
 }).extend(PROPERTIES);
@@ -412,8 +431,10 @@ const INSIDE_AT_RULE_SUPPORTS = new Grammar({
   'meta: property pair': {
     pattern: /([\-a-z]+)(\s*:\s*)([^;]+)(?=\)|$)/,
     replacement: `<span class="property">#{1}</span>#{2}#{3}#{4}`,
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    captures: {
+      '1': 'property',
+      '2': 'punctuation',
+      '3': () => VALUES
     }
   }
 }).extend(OPERATOR_LOGICAL);
@@ -421,9 +442,9 @@ const INSIDE_AT_RULE_SUPPORTS = new Grammar({
 const MEDIA_AT_RULE_PROP_PAIR = new Grammar({
   'meta: property pair': {
     pattern: /([\-a-z]+)(\s*:\s*)([^;]+)(?=\)|$)/,
-    replacement: `<span class="property">#{1}</span>#{2}#{3}#{4}`,
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    captures: {
+      '1': 'property',
+      '3': () => VALUES
     }
   }
 });
@@ -431,11 +452,11 @@ const MEDIA_AT_RULE_PROP_PAIR = new Grammar({
 const INSIDE_URL_FUNCTION = new Grammar({}).extend(STRINGS, VARIABLES, FUNCTIONS);
 
 const AT_RULES = new Grammar({
-  'keyword keyword-at-rule keyword-at-rule-if': {
+  'meta: at-rule': {
     pattern: /(@(?:elseif|if|else))(.*)({)/,
-    replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}",
-    before: (r, context) => {
-      r[2] = INSIDE_AT_RULE_IF.parse(r[2], context);
+    captures: {
+      '1': 'keyword keyword-at-rule keyword-at-rule-if',
+      '2': INSIDE_AT_RULE_IF
     }
   },
 
@@ -443,74 +464,70 @@ const AT_RULES = new Grammar({
     pattern: /(@keyframes)(\s+)([a-z-]+)(\s*)({)([\s\S]*)(})/,
     index: (match) => {
       return balance(
-        match, '}', '{', { startIndex: match.indexOf('{') }
+        match, '}', '{',
+        { startIndex: match.indexOf('{') }
       );
     },
-    before: (r, context) => {
-      r[6] = INSIDE_AT_RULE_KEYFRAMES.parse(r[6], context);
-    },
-    replacement: compact(`
-      <span class='#{name}'>#{1}</span>#{2}
-      <span class='entity'>#{3}</span>
-      #{4}#{5}#{6}#{7}
-    `)
-    // replacement: "<span class='#{name}'>#{1}</span>#{2}<span class='entity'>#{3}</span>#{4}#{5}#{6}#{7}"
+    captures: {
+      '1': 'keyword keyword-at-rule keyword-at-rule-keyframes',
+      '3': 'entity',
+      '6': INSIDE_AT_RULE_KEYFRAMES
+    }
   },
 
   'keyword keyword-at-rule keyword-at-rule-log-directive': {
     pattern: /(@(?:error|warn|debug))(\s+|\()(.*)(\)?;)(\s*)(?=\n)/,
     replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}#{5}",
-    before: (r, context) => {
-      r[3] = STRINGS.parse(r[3], context);
+    captures: {
+      '3': STRINGS
     }
   },
 
   'keyword keyword-at-rule keyword-at-rule-each': {
     pattern: /(@each)(.*)\b(in)\b(.*)(\{)/,
-    replacement: "<span class='#{name}'>#{1}</span>#{2}<span class='keyword'>#{3}</span>#{4}#{5}",
-    before: (r, context) => {
-      r[2] = VARIABLES.parse(r[2], context);
-      r[4] = VALUES.parse(r[4], context);
+    replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}#{5}",
+    captures: {
+      '2': () => VARIABLES,
+      '3': 'keyword',
+      '4': () => VALUES
     }
   },
 
   'keyword keyword-at-rule keyword-at-rule-for': {
     pattern: /(@for)(.*)\b(from)\b(.*)(through)(.*)({)/,
     replacement: compact(`
-      <span class='#{name}'>#{1}</span>#{2}
-      <span class='keyword'>#{3}</span>#{4}
-      <span class='keyword'>#{5}</span>#{6}#{7}
+      <span class='#{name}'>#{1}</span>
+      #{2}#{3}#{4}#{5}#{6}#{7}
     `),
-    before: (r, context) => {
-      r[2] = VARIABLES.parse(r[2], context);
-      r[4] = VALUES.parse(r[4], context);
-      r[6] = VALUES.parse(r[6], context);
+    captures: {
+      '2': () => VARIABLES,
+      '3': 'keyword',
+      '4': () => VALUES,
+      '5': 'keyword',
+      '6': () => VALUES
     }
   },
 
   'keyword keyword-at-rule keyword-at-rule-mixin': {
     pattern: /(@mixin)(\s+)([A-Za-z-][A-Za-z0-9\-_]+)(?:(\s*\())?(.*)(?={)/,
     replacement: compact(`
-      <span class='#{name}'>#{1}</span>#{2}
-      <span class='function'>#{3}</span>#{4}#{5}
+      <span class='#{name}'>#{1}</span>#{2}#{3}#{4}#{5}
     `),
-    before: (r, context) => {
-      if (r[5]) {
-        r[5] = PARAMETERS.parse(r[5], context);
-      }
+    captures: {
+      '3': 'function',
+      '5': PARAMETERS
     }
   },
 
   'keyword keyword-at-rule keyword-at-rule-function': {
     pattern: /(@function)(\s+)([A-Za-z-][A-Za-z0-9\-_]+)(?:(\s*\())?(.*)(?={)/,
     replacement: compact(`
-      <span class='#{name}'>#{1}</span>#{2}
-      <span class='function'>#{3}</span>#{4}#{5}
+      <span class='#{name}'>#{1}</span>
+      #{2}#{3}#{4}#{5}
     `),
-    before: (r, context) => {
-      if (r[5]) {
-        r[5] = PARAMETERS.parse(r[5], context);
-      }
+    captures: {
+      '3': 'function',
+      '5': PARAMETERS
     }
   },
 
@@ -532,27 +549,26 @@ const AT_RULES = new Grammar({
 
   'keyword keyword-at-rule keyword-at-rule-include': {
     pattern: /(@include)(\s+)([A-Za-z][A-Za-z0-9\-_]+)(?:(\s*\())?([\s\S]*?)(;|\{)/,
-    replacement: "<span class='#{name}'>#{1}</span>#{2}<span class='function'>#{3}</span>#{4}#{5}#{6}",
-    before: (r, context) => {
-      if (r[5]) {
-        r[5] = INSIDE_AT_RULE_INCLUDE.parse(r[5], context);
-      }
+    replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}#{5}#{6}",
+    captures: {
+      '3': 'function',
+      '5': INSIDE_AT_RULE_INCLUDE
     }
   },
 
   'keyword keyword-at-rule keyword-at-rule-media': {
     pattern: /(@media)(.*)({)/,
     replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}",
-    before: (r, context) => {
-      r[2] = INSIDE_AT_RULE_MEDIA.parse(r[2], context);
+    captures: {
+      '2': INSIDE_AT_RULE_MEDIA
     }
   },
 
   'keyword keyword-at-rule keyword-at-rule-import': {
     pattern: /(@import)(.*)(;)/,
     replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}",
-    before: (r, context) => {
-      r[2] = STRINGS.parse(r[2], context);
+    captures: {
+      '2': STRINGS
     }
   },
 
@@ -563,25 +579,28 @@ const AT_RULES = new Grammar({
   'keyword keyword-at-rule keyword-at-rule-charset': {
     pattern: /(@charset)(\s+)(.*)(;)(\s*)(?=\n|$)/,
     replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}#{5}",
-    before: (r, context) => {
-      r[3] = STRINGS.parse(r[3], context);
+    captures: {
+      '3': STRINGS
     }
   },
 
   'keyword keyword-at-rule keyword-at-rule-namespace': {
     pattern: /(@namespace)(\s+)(?:([a-zA-Z][a-zA-Z0-9]+)(\s+))?([^\s]*)(;)(?=\n|$)/,
-    replacement: "<span class='#{name}'>#{1}</span>#{2}<span class='selector'>#{3}</span>#{4}#{5}#{6}",
+    replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}#{5}#{6}",
+    captures: {
+      '3': 'selector',
+      '5': FUNCTIONS
+    },
     before: (r, context) => {
       if (!r[3]) { r[4] = ''; }
-      r[5] = FUNCTIONS.parse(r[5], context);
     }
   },
 
   'keyword keyword-at-rule keyword-at-rule-supports': {
     pattern: /(@supports)(\s+)(.*)({)(\s*)(?=\n)/,
     replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}#{5}",
-    before: (r, context) => {
-      r[3] = INSIDE_AT_RULE_SUPPORTS.parse(r[3], context);
+    captures: {
+      '3': INSIDE_AT_RULE_SUPPORTS
     }
   },
 
@@ -593,8 +612,8 @@ const AT_RULES = new Grammar({
   'keyword keyword-at-rule keyword-at-rule-return': {
     pattern: /(@return)(\s+)(.*)(;)/,
     replacement: "<span class='#{name}'>#{1}</span>#{2}#{3}#{4}",
-    before: (r, context) => {
-      r[3] = VALUES.parse(r[3], context);
+    captures: {
+      '3': () => VALUES
     }
   }
 });
@@ -630,10 +649,9 @@ MAIN.extend({
       let endIndex = findFirstThatIsNotPrecededBy('{', '#', match, 0);
       return endIndex;
     },
-    replacement: "#{1}#{2}#{3}",
-    before: (r, context) => {
-      // TODO: interpolations?
-      r[2] = SELECTORS.parse(r[2], context);
+    // TODO: interpolations?
+    captures: {
+      '2': SELECTORS
     }
   }
 });

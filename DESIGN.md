@@ -13,11 +13,11 @@ I also just wanted to see if I could do it. Fluorescence predated Prism; I was c
 
 In an ideal world, I wanted a client-side version of TextMate’s language grammars. They make heavy use of regular expressions in order to tokenize source code into logical units. But TextMate grammars can also be highly contextually aware. That’s crucial when `>` can mean something completely different in an attribute value than it does elsewhere.
 
-But TextMate (and Atom after it) use the powerful Oniguruma regex library, and I don’t. The main challenges when trying to replicate TextMate grammars in a client-side JavaScript world are as follows:
+But TextMate (and Atom after it) use the powerful [Oniguruma][] regex library, and I don’t. The main challenges when trying to replicate TextMate grammars in a client-side JavaScript world are as follows:
 
 ### No lookbehind
 
-JavaScript `RegExp`s don’t support positive or negative lookbehind. So far, this has not been a gigantic problem; I could fix it by adopting [XRegExp][], and I may do so in the future
+JavaScript `RegExp`s don’t support positive or negative lookbehind. So far, this has not been a gigantic problem; I could fix it by adopting [XRegExp][], and I may do so in the future.
 
 ### Not enough data on capture groups
 
@@ -254,3 +254,7 @@ A more sensible way to approach this would be something like this:
 In fact, that’s roughly how Daub parses JSX. Finding the end of the JSX tag in this example is too complex for the simple balancing logic used elsewhere, so the `Lexer` class is an exploration of a more sophisticated approach.
 
 Right now, its use is limited to finding the correct boundary; once it’s done so, the JSX Daub grammar parses the match further.
+
+[prism]: https://prismjs.com
+[xregexp]: http://xregexp.com
+[oniguruma]: https://github.com/kkos/oniguruma

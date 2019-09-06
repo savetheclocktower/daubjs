@@ -1,6 +1,6 @@
 
 import { Grammar, Utils } from '../daub';
-const { balance, compact, VerboseRegExp, wrap } = Utils;
+const { balance, compact, VerboseRegExp } = Utils;
 
 let PARAMETERS = new Grammar({
   'parameter': {
@@ -22,8 +22,8 @@ let PARAMETERS = new Grammar({
         <span class="variable">#{3}</span>
       </span>
     `),
-    before: r => {
-      r[1] = STORAGE.parse(r[1]);
+    captures: {
+      '1': () => STORAGE
     }
   }
 });
@@ -37,29 +37,29 @@ let ESCAPES = new Grammar({
 const DECLARATIONS = new Grammar({
   'meta: function': {
     pattern: VerboseRegExp`
-      ([A-Za-z_$]\w*) # 1: return type
+      ([A-Za-z_$]\w*)   # 1: return type
       (\s+)             # 2: space
       ([a-zA-Z_$:]\w*)  # 3: function name
       (\s*)             # 4: space
       (\()              # 5: open parenthesis
-      (.*)             # 6: raw params
+      (.*)              # 6: raw params
       (\))              # 7: close parenthesis
       (\s*)             # 8: optional whitespace
-      (?={)               # 9: open brace
+      (?={)             # 9: open brace
     `,
-    index: match => {
+    index (match) {
       let parenIndex = balance(
-        match, ')', '(', { startIndex: match.indexOf('(') }
+        match, ')', '(',
+        { startIndex: match.indexOf('(') }
       );
-      // Find the index just before the opening brace after the parentheses are balanced.
+      // Find the index just before the opening brace after the parentheses are
+      // balanced.
       return match.indexOf('{', parenIndex) - 1;
     },
     replacement: "<b><span class='storage storage-type storage-return-type'>#{1}</span>#{2}#{3}#{4}#{5}#{6}#{7}#{8}</b>",
-    before (r, context) {
-      if (r[3]) r[3] = wrap(r[3], 'entity');
-      // console.log('about to parse for params:', r[6]);
-      r[6] = PARAMETERS.parse(r[6], context);
-      return r;
+    captures: {
+      '3': 'entity',
+      '6': () => PARAMETERS
     }
   },
 
@@ -71,13 +71,10 @@ const DECLARATIONS = new Grammar({
       (\s*)                 # 4: optional whitespace
       (?=;)                 # followed by semicolon
     `,
-
-    replacement: compact(`
-      <span class="storage storage-type">#{1}</span>
-      #{2}
-      <span class="variable">#{3}</span>
-      #{4}
-    `)
+    captures: {
+      '1': 'storage storage-type',
+      '3': 'variable'
+    }
   },
 
   'meta: declaration with assignment': {
@@ -88,13 +85,11 @@ const DECLARATIONS = new Grammar({
       (\s*)                 # 4: optional whitespace
       (=)                   # 5: equals sign
     `,
-    replacement: compact(`
-      <span class="storage storage-type">#{1}</span>
-      #{2}
-      <span class="variable">#{3}</span>
-      #{4}
-      <span class="operator">#{5}</span>
-    `)
+    captures: {
+      '1': 'storage storage-type',
+      '3': 'variable',
+      '5': 'operator'
+    }
   },
 
   'meta: array declaration': {
@@ -106,15 +101,13 @@ const DECLARATIONS = new Grammar({
       (\d+)                 # 5: number
       (\])                   # 6: close bracket
     `,
-
-    replacement: compact(`
-      <span class="storage storage-type">#{1}</span>
-      #{2}
-      <span class="variable">#{3}</span>
-      <span class="punctuation">#{4}</span>
-      <span class="number">#{5}</span>
-      <span class="punctuation">#{6}</span>
-    `)
+    captures: {
+      '1': 'storage storage-type',
+      '3': 'variable',
+      '4': 'punctuation',
+      '5': 'number',
+      '6': 'punctuation'
+    }
   },
 
   'meta: declaration with parens': {
@@ -129,41 +122,32 @@ const DECLARATIONS = new Grammar({
       (;)                   # 8: semicolon
     `,
 
-    index: match => {
+    index (match) {
       let balanceIndex = balance(match, ')', '(') + 1;
       let index = match.indexOf(';', balanceIndex);
       return index;
     },
-    replacement: compact(`
-      <span class="storage storage-type">#{1}</span>
-      #{2}
-      <span class="variable">#{3}</span>
-      #{4}
-      <span class="punctuation">#{5}</span>
-      #{6}
-      <span class="punctuation">#{7}</span>
-      #{8}
-    `),
-
-    before: (r, context) => {
-      r[6] = VALUES.parse(r[6], context);
+    captures: {
+      '1': 'storage storage-type',
+      '3': 'variable',
+      '5': 'punctuation',
+      '6': () => VALUES,
+      '7': 'punctuation'
     }
   },
 
   'meta: class declaration': {
     pattern: VerboseRegExp`
-      \b(class|enum)                # 1: keyword
-      (\s+)                    # 2: whitespace
+      \b(class|enum)            # 1: keyword
+      (\s+)                     # 2: whitespace
       ([A-Za-z][A-Za-z0-9:_$]*) # 3: identifier
-      (\s*)                    # 4: optional whitespace
-      ({)                      # 5: opening brace
+      (\s*)                     # 4: optional whitespace
+      ({)                       # 5: opening brace
     `,
-    replacement: compact(`
-      <span class="storage storage-type">#{1}</span>
-      #{2}
-      <span class="entity entity-class">#{3}</span>
-      #{4}#{5}
-    `)
+    captures: {
+      '1': 'storage storage-type',
+      '3': 'entity entity-class'
+    }
   }
 });
 
@@ -173,7 +157,7 @@ const VALUES = new Grammar({
     pattern: /\b[A-Z_]+\b/
   },
 
-  'meta: lambda': {
+  'lambda': {
     pattern: VerboseRegExp`
       (\[\])     # 1: empty square brackets
       (\s*)      # 2: optional whitespace
@@ -185,26 +169,21 @@ const VALUES = new Grammar({
       ([\s\S]*)  # 8: lambda contents
       (})        # 9: closing brace
     `,
-    index: match => {
+    index (match) {
       return balance(
-        match, '}', '{', { startIndex: match.indexOf('{') }
+        match, '}', '{',
+        { startIndex: match.indexOf('{') }
       );
     },
-    replacement: compact(`
-      <span class="lambda">
-        <span class="punctuation">#{1}</span>#{2}
-        <span class="punctuation">#{3}</span>
-        #{4}
-        <span class="punctuation">#{5}</span>
-        #{6}
-        <span class="punctuation">#{7}</span>
-        #{8}
-        <span class="punctuation">#{9}</span>
-      </span>
-    `),
-    before: (r, context) => {
-      r[4] = PARAMETERS.parse(r[4], context);
-      r[8] = MAIN.parse(r[8], context);
+    wrapReplacement: true,
+    captures: {
+      '1': 'punctuation',
+      '3': 'punctuation',
+      '4': () => PARAMETERS,
+      '5': 'punctuation',
+      '7': 'punctuation',
+      '8': () => MAIN,
+      '9': 'punctuation'
     }
   },
 
@@ -218,9 +197,9 @@ const VALUES = new Grammar({
     // * an even number of consecutive backslashes OR
     // * any backslash-plus-apostrophe pair.
     pattern: /(')((?:[^'\\]|\\\\|\\')*)(')/,
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = ESCAPES.parse(r[2], context);
+    wrapReplacement: true,
+    captures: {
+      '2': () => ESCAPES
     }
   },
 
@@ -230,10 +209,10 @@ const VALUES = new Grammar({
     // * an even number of consecutive backslashes OR
     // * any backslash-plus-quote pair.
     pattern: /(")((?:[^"\\]|\\\\|\\")*)(")/,
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = ESCAPES.parse(r[2], context);
-    },
+    wrapReplacement: true,
+    captures: {
+      '2': () => ESCAPES
+    }
   },
 
   'number': {
@@ -268,9 +247,10 @@ const MACROS = new Grammar({
       <span class="entity entity-macro">#{3}</span>
       #{4}
     `),
-
-    before: (r, context) => {
-      r[4] = MACRO_VALUES.parse(r[4], context);
+    captures: {
+      '1': 'keyword keyword-macro',
+      '3': 'entity entity-macro',
+      '4': () => MACRO_VALUES
     }
   },
   'macro macro-include': {
@@ -282,7 +262,6 @@ const MACROS = new Grammar({
       ("|>|&gt;)   # 5: punctuation
       (?=\n|$)     # end of line
     `,
-
     replacement: compact(`
       <span class="keyword keyword-macro">#{1}</span>#{2}
       <span class="string string-include">
@@ -296,14 +275,13 @@ const MACROS = new Grammar({
   'macro macro-with-one-argument': {
     pattern: VerboseRegExp`
       (\#(?:ifdef|ifndef|undef|if)) # 1: macro keyword
-      (\s+)                     # 2: whitespace
-      (\w+)                     # 3: token
+      (\s+)                         # 2: whitespace
+      (\w+)                         # 3: token
     `,
-    replacement: compact(`
-      <span class="keyword keyword-macro">#{1}</span>
-      #{2}
-      <span class="entity entity-macro">#{3}</span>
-    `)
+    captures: {
+      '1': 'keyword keyword-macro',
+      '3': 'entity entity-macro'
+    }
   },
 
   'macro macro-error': {

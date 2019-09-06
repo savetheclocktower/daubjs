@@ -1,3 +1,7 @@
+// TODO: Instead of defining an iterator for `Lexer`, manually expand `include`
+// rules at instantiation time so that we can save having to include
+// `regenerator-runtime`.
+
 function resolve (value) {
   if (typeof value === 'function') { return value(); }
   return value;
@@ -53,19 +57,18 @@ class Lexer {
   }
 
   // To iterate through a lexer is to iterate through its rules.
-  *[Symbol.iterator] () {
+  [Symbol.iterator] () {
+
+    let allRules = [];
     for (let rule of this.rules) {
-      // If `include` is present, we're being asked to dynamically fold another
-      // lexer's rules into ours.
       if (rule.include) {
         let lexer = resolve(rule.include);
-        for (let subrule of lexer) {
-          yield subrule;
-        }
+        allRules.push([...lexer]);
       } else {
-        yield rule;
+        allRules.push(rule);
       }
     }
+    return allRules.values();
   }
 
   run (text, context = null, { startIndex = 0 } = {}) {
@@ -84,10 +87,15 @@ class Lexer {
       // respectively.
       let rule, match, cMatch;
       for (let cRule of this) {
-        if (cRule.test) {
-          cMatch = cRule.test(cRule.pattern, text, context);
-        }
         cMatch = cRule.pattern.exec(text);
+        if (cMatch && cRule.test) {
+          // A `test` rule, if defined, imposes further criteria on this rule.
+          // If it returns truthy, we proceed. If it returns falsy, the rule
+          // doesn't pass after all.
+          let result = cRule.test(cMatch, text, context, cRule.pattern);
+          if (!result) { cMatch = null; }
+        }
+
         if (cMatch) {
           // This rule matched, but it's still only a _candidate_ for the right
           // match. We choose the one that matches as near to the beginning of

@@ -377,8 +377,6 @@ UH_OH = %Q{
 
 Ruby's `%Q` literal syntax lets you declare a multi-line string. The literal itself can be delimited with brackets, parentheses, or braces, among other things. But if we use braces, we run into trouble, because we're also using braces inside of the literal.
 
-`thing`
-
 Ruby knows not to end the literal until the braces are balanced. But with a regex, you're stuck. A greedy capture group will match too much, but a non-greedy capture group will match too little.
 
 The way Daub gets around this is to allow a rule to specify a callback called `index`. When called, the callback can use whatever logic it likes to find the actual portion of that string that it can match, and should return the index of the last character in that substring.

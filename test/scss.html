@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./theme.css"   type="text/css">
   <link rel="stylesheet" href="./support.css" type="text/css">
 
-  <script src="../dist/daub.js"></script>
+  <script src="../dist/daub.umd.js"></script>
   <script src="./support.js"></script>
 
   <title>Daub tests</title>
@@ -545,16 +545,21 @@ $default-background-clip: padding-box !default;</code></pre>
   to {
     transform: rotate(359deg);
   }
-}</code></pre>
+}
+
+@media screen and (max-width: 720px) {
+  p { color: #909; }
+}
+</code></pre>
 
 <h1 id="flow-control">Flow control</h1>
 
 <pre><code class="scss">
-  
+
 @if $debug {
   background-color: rgba(255, 0, 0, 0.3);
 }
-  
+
 @each $el in $post-elements {
   &amp;__#{$el} { @extend .post__#{$el} !optional; }
 }

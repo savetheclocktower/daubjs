@@ -1,4 +1,4 @@
-import { EVerboseRegExp as re } from '../utils';
+import { VerboseRegExp as re } from '../utils';
 import { default as Lexer } from '../lexer';
 
 const ESCAPE = new Lexer([
@@ -9,19 +9,13 @@ const ESCAPE = new Lexer([
 ]);
 
 const REGEX = new Lexer([
-  {
-    name: 'escape',
-    pattern: re`\\.`
-  },
+  { name: 'escape', pattern: re`\\.` },
   {
     name: 'exclude from group begin',
     pattern: re`\\\(`,
     raw: true
   },
-  {
-    name: 'group-begin',
-    pattern: re`\(`
-  },
+  { name: 'group-begin', pattern: re`\(` },
   {
     name: 'group-end',
     pattern: re`\(`,

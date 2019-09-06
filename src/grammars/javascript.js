@@ -88,7 +88,6 @@ let STRINGS = new Grammar({
     pattern: /(')((?:[^'\\]|\\\\|\\[^'])*)(')/,
     replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
     before: (r, context) => {
-      // console.log('match:', r[2]);
       r[2] = ESCAPES.parse(r[2], context);
     }
   },

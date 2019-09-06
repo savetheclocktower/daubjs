@@ -1,3 +1,10 @@
+import Template, {
+  escapeRegExp,
+  gsub,
+  regExpToString
+} from './template';
+import { VerboseRegExp } from './utils/verbose-regexp';
+
 // Find the next "balanced" occurrence of the token. Searches through the
 // string unit by unit. Whenever the `paired` token is encountered, the
 // stack size increases by 1. When `token` is encountered, the stack size
@@ -49,53 +56,12 @@ function wrap (str, className) {
   return `<span class="${className}">${str}</span>`;
 }
 
-
-function _isEscapedHash (line, index) {
-  return (index === 0) ? false : line.charAt(index - 1) === '\\';
-}
-
-function _trimCommentsFromLine (line) {
-  let hashIndex = -1;
-  do { hashIndex = line.indexOf('#', hashIndex + 1); }
-  while ( hashIndex > -1 && _isEscapedHash(line, hashIndex) );
-
-  if (hashIndex > -1) { line = line.substring(0, hashIndex); }
-  line = line.trim();
-  return line;
-}
-
-// A tagged template literal that allows you to define a verbose regular
-// expression using backticks. Literal whitespace is ignored, and you can use
-// `#` to mark comments. This makes long regular expressions way easier for
-// humans to read and write.
-//
-// Escape sequences _do not_ need to be double-escaped, with one exception:
-// capture group backreferences like \5 need to be written as \\5, because JS
-// doesn't understand that syntax outside of a literal RegExp.
-function VerboseRegExp (str, flags = '') {
-  let raw = str.raw[0];
-
-  let pattern = raw.split(/\n/)
-    .map(_trimCommentsFromLine)
-    .join('')
-    .replace(/\s/g, '');
-
-  // Take (e.g.) `\\5` and turn it into `\5`. For some reason we can't do
-  // this with raw strings.
-  pattern = pattern.replace(/(\\)(\\)(\d+)/g, (m, _, bs, d) => {
-    return `${bs}${d}`;
-  });
-
-  let result = new RegExp(pattern, flags);
-  return result;
-}
-
-function regexpEscape (str) {
-  return str.replace(
-    /[-\/\\^$*+?.()|[\]{}]/g,
-    '\\$&'
-  );
-}
+// function regexpEscape (str) {
+//   return str.replace(
+//     /[-\/\\^$*+?.()|[\]{}]/g,
+//     '\\$&'
+//   );
+// }
 
 function balanceQuotes (text, iterator, options = {}) {
   options = {
@@ -223,7 +189,6 @@ function balancePattern (text, patternOpen, patternClose, options = {}) {
   }
 
   // If we get this far, the stack depth is back at 0.
-  // console.log(`Balanced at index: ${currentIndex} ${text.slice(startIndex, currentIndex)}`);
   return currentIndex;
 }
 
@@ -252,10 +217,10 @@ function _getLastToken (results) {
 }
 
 function balanceByLexer (text, lexer) {
-  console.debug(`balanceByLexer`, text, lexer);
   let results = lexer.run(text);
   let lastToken = _getLastToken(results.tokens);
-  return lastToken.index + lastToken.content.length - 1;
+  let index = lastToken.index + lastToken.content.length - 1;
+  return index;
 }
 
 function flattenTokens (tokens) {
@@ -275,11 +240,11 @@ function flattenTokens (tokens) {
 export {
   balance,
   balanceByLexer,
-  balancePattern,
-  balanceQuotes,
   compact,
+  escapeRegExp,
   flattenTokens,
+  gsub,
+  regExpToString,
   wrap,
-  VerboseRegExp,
-  regexpEscape
+  VerboseRegExp
 };

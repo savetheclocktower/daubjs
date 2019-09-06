@@ -1,5 +1,12 @@
 
-import * as Daub from './daub';
+import {
+  Context,
+  Grammar,
+  AsyncHighlighter,
+  Highlighter,
+  Lexer,
+  Utils
+} from './daub';
 
 import Arduino from './grammars/arduino';
 import HTML from './grammars/html';
@@ -10,115 +17,79 @@ import Ruby from './grammars/ruby';
 import SCSS from './grammars/scss';
 import Shell from './grammars/shell';
 
-// import JSXLexer from './lexers/jsx-new';
-// import { HTMLFormatter } from './formatter';
+const GRAMMAR_MAP = {
+  'arduino': Arduino,
+  'html': HTML,
+  'javascript': JavaScript,
+  'jsx': JSX,
+  'python': Python,
+  'ruby': Ruby,
+  'scss': SCSS,
+  'shell': Shell
+};
 
-import './plugins/whitespace-normalizer';
-import './plugins/line-highlighter';
+const GRAMMARS = {
+  Arduino,
+  HTML,
+  JavaScript,
+  JSX,
+  Python,
+  Ruby,
+  SCSS,
+  Shell
+};
 
-let highlighter = new Daub.Highlighter();
+import pluginWhitespaceNormalizer from './plugins/whitespace-normalizer';
+import pluginLineHighligher from './plugins/line-highlighter';
 
-highlighter.addGrammar(Arduino);
-highlighter.addGrammar(SCSS);
-highlighter.addGrammar(JavaScript);
-highlighter.addGrammar(JSX);
-highlighter.addGrammar(HTML);
-highlighter.addGrammar(Python);
-highlighter.addGrammar(Ruby);
-highlighter.addGrammar(Shell);
-
-
-// const escapeLexer = new Daub.Lexer([
+const PLUGIN_MAP = {
+  'whitespace-normalizer': pluginWhitespaceNormalizer,
+  'line-highlighter': pluginLineHighligher
+};
 //
-// ]);
+// let highlighter = new Daub.Highlighter();
+//
+// highlighter.addGrammar(Arduino);
+// highlighter.addGrammar(SCSS);
+// highlighter.addGrammar(JavaScript);
+// highlighter.addGrammar(JSX);
+// highlighter.addGrammar(HTML);
+// highlighter.addGrammar(Python);
+// highlighter.addGrammar(Ruby);
+// highlighter.addGrammar(Shell);
 
-const stringLexer = new Daub.Lexer([
-  {
-    name: 'string-open',
-    pattern: /^\s*('|"|`)/,
-    test: (pattern, text, context) => {
-      let match = pattern.exec(text);
-      if (!match) { return false; }
-      context.set('string-open', match[1]);
-      return match;
-    }
-  },
-  {
-    name: 'string-escape',
-    pattern: /\\./
-  },
-  {
-    name: 'string-end',
-    pattern: /('|"|`)/,
-    test: (pattern, text, context) => {
-      let char = context.get('string-open');
-      let match = pattern.exec(text);
-      if (!match) { return false; }
-      if (match[1] !== char) { return false; }
-      context.set('string-open', null);
-      return match;
-    },
-    final: true
-  }
-]);
+function init ({
+  grammars = [],
+  plugins = []
+} = {}) {
+  let highlighter = new Highlighter();
 
-const tagLexer = new Daub.Lexer([
-  {
-    name: 'tag-open',
-    pattern: /^\s*<(?=[a-z])/
-  },
-  {
-    name: 'tag-name',
-    pattern: /^[a-z][a-z\-]*(?=\s|>)/
-  },
-  {
-    name: 'attribute-name',
-    pattern: /^\s*[a-z]+=/,
-    after: {
-      name: 'attribute-value',
-      lexer: stringLexer
-    }
-  },
-  {
-    name: 'tag-close',
-    pattern: /^>/,
-    final: true
-  }
-]);
+  let gs = grammars.map(g => GRAMMAR_MAP[g]);
 
-// let js = `
-//   import PropTypes from 'prop-types';
-//
-//   import {
-//     default as Thing,
-//     other
-//   } from \`../thing\`;
-//
-//   class View extends React.Component {
-//     render () {
-//       let { isClosable } = this.props;
-//       if (foo && bar) { doSomething(); }
-//       if (bar !== '3') { doSomethingElse(); }
-//       return (
-//         &lt;div className="WhatTheHell">
-//           {isClosable && &lt;Button onClose={onClose} />}
-//           &lt;div>foo&lt;/div>
-//         &lt;/div>
-//       );
-//     }
-//   }
-//
-//   function OtherView ({ text }) {
-//     return &lt;div>{text}&lt;/div>
-//   }
-//
-//   export default View;`;
-//
-// let results = JSXLexer.run(js);
-// let output = new HTMLFormatter().format(results.tokens);
-// console.log('!!!! Raw: ', results);
-// console.log('!!!! HTML:', JSON.stringify(output));
-//
-// window.output = output;
+  gs.forEach(g => {
+    if (!g) { return; }
+    highlighter.addGrammar(g);
+  });
 
-export default highlighter;
+  let ps = plugins.map(p => PLUGIN_MAP[p]);
+
+  ps.forEach(p => {
+    if (!p) { return; }
+    p();
+  });
+
+  return highlighter;
+}
+
+export {
+  GRAMMARS,
+
+  Context,
+  Grammar,
+  AsyncHighlighter,
+  Highlighter,
+  Lexer,
+  Utils,
+
+  init
+};

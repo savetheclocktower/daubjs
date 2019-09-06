@@ -3,17 +3,14 @@
     [
       "@babel/preset-env",
       {
-        "targets": [
-          "last 3 versions"
-        ],
-        "modules": false
+        "targets": "> 1%, not dead, not ie<12",
+        "useBuiltIns": "entry",
+        "corejs": 3,
+        "debug": true
       }
     ]
   ],
   "plugins": [
-    "@babel/plugin-transform-regenerator",
-    "@babel/plugin-transform-spread",
-    "@babel/plugin-proposal-object-rest-spread",
-    "@babel/plugin-external-helpers"
+    "./babel/verbose-regexp-macro"
   ]
 }

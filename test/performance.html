@@ -5,10 +5,12 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 
+  <meta name="language" value="jsx">
+
   <link rel="stylesheet" href="./theme.css"   type="text/css">
   <link rel="stylesheet" href="./support.css" type="text/css">
 
-  <script defer src="../dist/daub.js"></script>
+  <script defer src="../dist/daub.umd.js"></script>
   <script defer src="./support.js"></script>
 
   <title>Daub tests</title>
@@ -21,7 +23,7 @@
 
 <h1 id="long-file-es6">Long file (ES6)</h1>
 
-<pre><code class="javascript">// Find the next "balanced" occurrence of the token. Searches through the
+<pre><code class="javascript-jsx">// Find the next "balanced" occurrence of the token. Searches through the
 // string unit by unit. Whenever the `paired` token is encountered, the
 // stack size increases by 1. When `token` is encountered, the stack size
 // decreases by 1, and if the stack size is already 0, that's our desired
@@ -135,7 +137,7 @@ function _interpretString (value) {
 function _escapeRegex (str) {
   return String(str).replace(/([.*+?^=!:${}()|[\]\/\\])/g, '\\$1');
 }
-  
+
 function _regexWithoutGlobalFlag (re) {
   let flags = re.flags.replace('g', '');
   return new RegExp( _regexToString(re) , flags);
@@ -194,7 +196,7 @@ function gsub (source, pattern, replacement) {
       result += source.slice(0, match.index);
       // Copy over the string that is meant to replace the matched string.
       result += _interpretString(replaced);
-      
+
       // Now we can remove everything from `source` up to the end of what was
       // matched.
       if (typeof newLength !== 'undefined') {
@@ -252,7 +254,7 @@ class Template {
 
       let before = match[1] || '';
       if (before == '\\') return match[2];
-      
+
       let ctx = object, expr = match[3];
 
       let pattern = /^([^.[]+|\[((?:.*?[^\\])?)\])(\.|\[|$)/;
@@ -426,7 +428,7 @@ class Grammar {
           j += rule.length;
           continue;
         }
-        
+
         if (rule.index) {
           // The rule is saying that it might decide that it wants to parse
           // less than what it was given. In that case it'll return an index
@@ -489,7 +491,7 @@ class Grammar {
         if (typeof actualLength !== 'undefined') {
           return [result, index];
         }
-        
+
         return result;
       }
 
@@ -563,7 +565,7 @@ class Grammar {
 class Rule {
   constructor (name, rule, prevCaptures) {
     this.name = name;
-    
+
     let r = rule.replacement;
     if (r) {
       this.replacement = r instanceof Template ? r : new Template(r);
@@ -856,7 +858,7 @@ MAIN$1.extend({
     pattern: /\$\d/,
     replacement: "#{0}"
   },
-  
+
   // So that properties with keyword names don't get treated like keywords.
   'meta: properties with keyword names': {
     pattern: /(\.)(for|if|while|switch|catch|return)\b/,
@@ -2490,7 +2492,7 @@ export default highlighter;
 
 <h1 id="long-file">Long file (ES5)</h1>
 
-<pre><code class="javascript">
+<pre><code class="javascript-jsx">
   var Daub = (function () {
   'use strict';
 
@@ -5105,7 +5107,7 @@ export default highlighter;
   return highlighter;
 
   }());
-  
+
 </code></pre>
 
 <script type="text/javascript">

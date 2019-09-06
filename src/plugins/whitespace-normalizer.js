@@ -34,7 +34,7 @@ function findAllTextNodes (fragment) {
   return results;
 }
 
-document.addEventListener('daub-will-highlight', (event) => {
+function handler (event) {
   let { fragment } = event.detail;
 
   let firstTextNode = findFirstTextNode(fragment);
@@ -62,4 +62,14 @@ document.addEventListener('daub-will-highlight', (event) => {
       lastTextNode
     );
   }
-});
+}
+
+function init () {
+  document.addEventListener('daub-will-highlight', handler);
+}
+
+function cleanup () {
+  document.removeEventListener('daub-will-highlight', handler);
+}
+
+export default init;

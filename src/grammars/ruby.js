@@ -2,8 +2,12 @@ import { Utils, Grammar } from '../daub';
 
 const { balance, compact, VerboseRegExp } = Utils;
 
+function includes (str, pattern) {
+  return str.indexOf(pattern) > -1;
+}
+
 function hasOnlyLeftBrace (part) {
-  return part.includes('{') && !part.includes('}');
+  return includes(part, '{') && !includes(part, '}');
 }
 
 function findEndOfHash (allParts, startIndex) {
@@ -12,7 +16,10 @@ function findEndOfHash (allParts, startIndex) {
   // Join the parts together so we can search one string to find the balanced
   // brace.
   let str = parts.join('');
-  let index = balance(str, '}', '{', { stackDepth: 1 });
+  let index = balance(
+    str, '}', '{',
+    { stackDepth: 1 }
+  );
   if (index === -1) { return; }
 
   // Loop through the parts until we figure out which part that balance brace
@@ -57,24 +64,29 @@ function parseParameters(str, grammar, context) {
 const PARAMETERS = new Grammar({
   'meta: parameter with default': {
     pattern: (/^(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*)/),
-    replacement: `#{1}<span class='variable parameter'>#{2}</span><span class='keyword punctuation'>#{3}</span>#{4}`,
-
-    before: function(r, context) {
-      r[4] = VALUES.parse(r[4], context);
+    captures: {
+      '2': 'variable parameter',
+      '3': 'keyword operator',
+      '4': () => VALUES
     }
   },
 
-  'variable parameter': {
+  'meta: variable': {
     pattern: (/^(\s*)([A-Za-z0-9_]+)$/),
-    replacement: "#{1}<span class='#{name}'>#{2}</span>"
+    captures: {
+      '2': 'variable parameter'
+    }
   }
 });
 
 // Block parameters get a separate grammar because they can't have defaults.
 const BLOCK_PARAMETERS = new Grammar({
-  'variable parameter': {
+  'meta: block variable': {
     pattern: (/^(\s*)([A-Za-z0-9_]+)$/),
-    replacement: "#{1}<span class='#{name}'>#{2}</span>"
+    replacement: "#{1}<span class='#{name}'>#{2}</span>",
+    captures: {
+      '2': 'variable parameter'
+    }
   }
 });
 
@@ -85,60 +97,51 @@ const VALUES = new Grammar({
   // Single-quoted strings are easy; they have no escapes _or_
   // interpolation.
   'string string-single-quoted': {
-    pattern: (/(')([^']*?)(')/),
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>"
+    pattern: /(')([^']*?)(')/
   },
 
   'string string-double-quoted': {
     pattern: (/(")(.*?[^\\])(")/),
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: function(r, context) {
-      r[2] = STRINGS.parse(r[2], context);
+    wrapReplacement: true,
+    captures: {
+      '2': () => STRINGS
     }
   },
 
   // Probably could rewrite the above pattern to catch this, but this is
   // good enough for now.
   'string string-double-quoted empty': {
-    pattern: (/\"\"/)
+    pattern: /\"\"/
   },
 
   'string string-percent-q string-percent-q-braces': {
-    // Capture group 2 is greedy because we don't know how much of this
-    // pattern is ours, so we ask for everything up until the last brace in
-    // the text. Then we find the balanced closing brace and act upon that
-    // instead.
     pattern: /(%Q\{)([\s\S]*)(\})/,
 
     index: (text) => {
       return balance(
-        text, '}', '{', { startIndex: text.indexOf('{') }
+        text, '}', '{',
+        { startIndex: text.indexOf('{') }
       );
     },
-
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-
-    // When we receive matches here, they won't be against the entire string
-    // that the pattern originally matched; they'll be against the segment of
-    // the string that we later decided we cared about.
-    before: (r, context) => {
-      r[2] = STRINGS.parse(r[2], context);
+    wrapReplacement: true,
+    captures: {
+      '2': () => STRINGS
     }
   },
 
   'string string-percent-q string-percent-q-brackets': {
-    pattern: (/(%Q\[)(.*?[^\\])(\])/),
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = STRINGS.parse(r[2], context);
+    pattern: /(%Q\[)(.*?[^\\])(\])/,
+    wrapReplacement: true,
+    captures: {
+      '2': () => STRINGS
     }
   },
 
   'string embedded string-shell-command': {
-    pattern: (/(`)([^`]*?)(`)/),
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: (r, context) => {
-      r[2] = STRINGS.parse(r[2], context);
+    pattern: /(`)([^`]*?)(`)/,
+    wrapReplacement: true,
+    captures: {
+      '2': () => STRINGS
     }
   },
 
@@ -169,48 +172,52 @@ const VALUES = new Grammar({
   },
 
   'symbol double-quoted': {
-    pattern: (/(:)(")(.*?[^\\])(")/),
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}#{4}</span>",
-    before: function(r, context) {
-      r[3] = STRINGS.parse(r[3], context);
+    pattern: /(:)(")(.*?[^\\])(")/,
+    wrapReplacement: true,
+    captures: {
+      '3': () => STRINGS
     }
   },
 
   regexp: {
-    pattern: (/(\/)(.*?)(\/)/),
-    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
-    before: function(r, context) {
-      r[2] = REGEX_INTERNALS.parse(r[2], context);
+    pattern: /(\/)(.*?)(\/)/,
+    wrapReplacement: true,
+    captures: {
+      '2': () => REGEX_INTERNALS
     }
   },
 
   'variable variable-instance': {
-    pattern: /(@)[a-zA-Z_]\w*/
+    pattern: /(@)[a-zA-Z_][\w\d]*/
+  },
+
+  'variable variable-global': {
+    pattern: /(\$)[a-zA-Z_][\w\d]*/
   },
 
   keyword: {
-    pattern: (/\b(do|class|def|if|module|yield|then|else|for|until|unless|while|elsif|case|when|break|retry|redo|rescue|require|lambda)\b/)
+    pattern: /\b(do|class|def|if|module|yield|then|else|for|until|unless|while|elsif|case|when|break|retry|redo|rescue|require|lambda)\b/
   }
 
 });
 
 const REGEX_INTERNALS = new Grammar({
   escape: {
-    pattern: (/\\./)
+    pattern: /\\./
   },
 
   'meta: exclude from group begin': {
-    pattern: (/\\\(/),
+    pattern: /\\\(/,
     replacement: "#{0}"
   },
 
   'group-begin': {
-    pattern: (/(\()/),
+    pattern: /(\()/,
     replacement: '<b class="group">#{1}'
   },
 
   'group-end': {
-    pattern: (/(\))/),
+    pattern: /(\))/,
     replacement: '#{1}</b>'
   }
 });
@@ -221,19 +228,23 @@ const STRINGS = new Grammar({
   },
 
   interpolation: {
-    pattern: (/(#\{)(.*?)(\})/),
-    replacement: "<span class='#{name}'><span class='punctuation'>#{1}</span>#{2}<span class='punctuation'>#{3}</span></span>",
-    before: (r, context) => {
-      r[2] = MAIN.parse(r[2], context);
-    }
-    // TODO: Re-parse inside?
+    pattern: /(#\{)(.*?)(\})/,
+    captures: {
+      '1': 'punctuation',
+      '2': () => MAIN,
+      '3': 'punctuation'
+    },
+    wrapReplacement: true
   }
 });
 
 const MAIN = new Grammar('ruby', {
   'meta: method definition': {
     pattern: /(def)(\s+)([A-Za-z0-9_!?.]+)(?:\s*(\()(.*?)(\)))?/,
-    replacement: "<span class='keyword'>#{1}</span>#{2}<span class='entity'>#{3}</span>#{4}#{5}#{6}",
+    captures: {
+      '1': 'keyword',
+      '3': 'entity'
+    },
     before: (r, context) => {
       if (r[5]) r[5] = parseParameters(r[5], null, context);
     }
@@ -314,13 +325,13 @@ const MAIN = new Grammar('ruby', {
     pattern: /(&lt;&lt;-|<<-)([_\w]+?)\b([\s\S]+?)(\2)/,
     replacement: compact(`
       <span class='#{name}'>
-        <span class='begin'>#{1}#{2}</span>
+        <span class='heredoc-begin'>#{1}#{2}</span>
         #{3}
-        <span class='end'>#{4}</span>
+        <span class='heredoc-end'>#{4}</span>
       </span>
     `),
-    before: (r, context) => {
-      r[3] = STRINGS.parse(r[3], context);
+    captures: {
+      '2': () => STRINGS
     }
   },
 
@@ -329,7 +340,7 @@ const MAIN = new Grammar('ruby', {
   },
 
   'keyword special': {
-    pattern: (/\b(initialize|new|loop|extend|raise|attr|catch|throw|private|protected|public|module_function|attr_(?:reader|writer|accessor))\b/)
+    pattern: /\b(initialize|new|loop|extend|raise|attr|catch|throw|private|protected|public|module_function|attr_(?:reader|writer|accessor))\b/
   }
 });
 
@@ -339,7 +350,7 @@ MAIN.extend(VALUES);
 // values grammar.
 MAIN.extend({
   comment: {
-    pattern: (/#[^\n]+/)
+    pattern: /#[^\n]+/
   },
 
   'bracket-block-end': {
