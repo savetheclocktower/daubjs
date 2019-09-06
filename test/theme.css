@@ -1,3 +1,13 @@
+
+pre {
+  /* background-color: #0a0a18; */
+  background-color: #0a0a28;
+}
+
+.daub-line-highlight {
+  background-color: rgba(255, 255, 255, 0.11);
+}
+
 code b {
   font-weight: normal;
 }
@@ -160,7 +170,8 @@ code.scss .selector-class {
   font-style: italic;
 }
 
-code .entity-class {
+code .entity-class,
+code .entity-module {
   color: #fff;
   text-decoration: underline;
 }
