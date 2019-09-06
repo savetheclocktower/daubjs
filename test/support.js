@@ -1,19 +1,25 @@
 /* global daub */
-var HIGHLIGHTER;
+/* eslint-disable no-console */
+var LOC = location.toString();
+var IS_ASYNC = LOC.match(/\?worker/);
 
-var WORKER = new Worker('/dist/daub.worker.umd.js');
+var HIGHLIGHTER;
+var WORKER = null;
+var GRAMMAR = null;
+if (IS_ASYNC) {
+  WORKER = new Worker('/dist/daub.worker.umd.js');
+}
 
 var Support = {
   setup () {
-    if (!grammar) {
+    if (!GRAMMAR) {
       let meta = document.querySelector(`meta[name="language"]`);
       if (meta) {
-        grammar = meta.getAttribute('value');
+        GRAMMAR = meta.getAttribute('value');
       } else {
         var loc = window.location.toString();
         var m = loc.match(/\/(\w*?)\.html/);
-        var grammar = null;
-        if (m) { grammar = m[1]; }
+        if (m) { GRAMMAR = m[1]; }
       }
     }
     if ( document.querySelector('ul#menu') ) {
@@ -39,10 +45,28 @@ var Support = {
       root = document.querySelector('[data-only]');
     }
 
-    HIGHLIGHTER = new daub.AsyncHighlighter({
-      worker: WORKER,
-      node: root
-    });
+    for (var name in daub.PLUGINS) {
+      daub.PLUGINS[name]();
+    }
+
+    if (IS_ASYNC) {
+      HIGHLIGHTER = new daub.AsyncHighlighter({
+        worker: WORKER,
+        node: root
+      });
+    } else {
+      HIGHLIGHTER = new daub.Highlighter();
+      HIGHLIGHTER.addElement(root);
+      let grammar = daub.Grammar.find(GRAMMAR);
+      if (grammar) {
+        HIGHLIGHTER.addGrammar(grammar);
+      } else {
+        for (var key in daub.GRAMMARS) {
+          HIGHLIGHTER.addGrammar(daub.GRAMMARS[key]);
+        }
+      }
+    }
+
 
     // highlighter = daub.init({
     //   grammars: [grammar],
@@ -90,7 +114,7 @@ var Support = {
     if (performance && performance.mark) {
       performance.mark('daub-before');
     }
-    HIGHLIGHTER.scan();
+    HIGHLIGHTER.highlight();
     if (performance && performance.mark) {
       performance.mark('daub-after');
       performance.measure('daub-before', 'daub-after');
