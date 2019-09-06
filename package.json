@@ -2,8 +2,8 @@
   "name": "daub",
   "version": "0.1.0",
   "description": "Syntax highlighting in the browser.",
-  "main": "dist/daub.js",
-  "module": "dist/daub.es6.js",
+  "main": "dist/cjs/daub.js",
+  "module": "dist/esm/index.js",
   "browser": "dist/daub.umd.js",
   "dependencies": {
     "babel-plugin-prismjs": "^1.1.1",

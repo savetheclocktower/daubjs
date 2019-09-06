@@ -1,20 +1,23 @@
-import { G as Grammar, _ as _objectSpread2, U as Utils, A as Arduino, H as HTML, J as JSX, P as Python, R as Ruby, S as SCSS, a as Shell, b as Highlighter } from './shell-a5143b86.js';
-export { c as AsyncHighlighter, C as Context, G as Grammar, b as Highlighter, L as Lexer, U as Utils } from './shell-a5143b86.js';
+'use strict';
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+var shell = require('./shell-618902c9.js');
 
 const {
   balance,
   compact,
   wrap,
   VerboseRegExp
-} = Utils; // TODO:
+} = shell.Utils; // TODO:
 // * Generators
 
-let ESCAPES = new Grammar({
+let ESCAPES = new shell.Grammar({
   escape: {
     pattern: /\\./
   }
 });
-let REGEX_INTERNALS = new Grammar({
+let REGEX_INTERNALS = new shell.Grammar({
   escape: {
     pattern: /\\./
   },
@@ -36,7 +39,7 @@ function handleParams(text, context) {
   return PARAMETERS.parse(text, context);
 }
 
-let INSIDE_TEMPLATE_STRINGS = new Grammar({
+let INSIDE_TEMPLATE_STRINGS = new shell.Grammar({
   'interpolation': {
     pattern: /(\$\{)(.*?)(\})/,
     replacement: "<span class='#{name}'><span class='punctuation'>#{1}</span><span class='interpolation-contents'>#{2}</span><span class='punctuation'>#{3}</span></span>",
@@ -45,7 +48,7 @@ let INSIDE_TEMPLATE_STRINGS = new Grammar({
     }
   }
 }).extend(ESCAPES);
-const PARAMETERS = new Grammar({
+const PARAMETERS = new shell.Grammar({
   'parameter parameter-with-default': {
     pattern: /([A-Za-z$_][$_A-Za-z0-9_]*)(\s*=\s*)(.*?)(?=,|\)|\n|$)/,
     replacement: compact("\n      <span class=\"parameter\">\n        <span class=\"variable\">#{1}</span>\n        <span class=\"operator\">#{2}</span>\n      #{3}\n      </span>\n    "),
@@ -60,7 +63,7 @@ const PARAMETERS = new Grammar({
     pattern: /[A-Za-z$_][$_A-Za-z0-9_]*/
   }
 });
-let STRINGS = new Grammar({
+let STRINGS = new shell.Grammar({
   'string string-template embedded': {
     pattern: /(`)([^`]*)(`)/,
     replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
@@ -91,7 +94,7 @@ let STRINGS = new Grammar({
     }
   }
 });
-let VALUES = new Grammar(_objectSpread2({
+let VALUES = new shell.Grammar(shell._objectSpread2({
   constant: {
     pattern: /\b(?:arguments|this|false|true|super|null|undefined)\b/
   },
@@ -116,7 +119,7 @@ let VALUES = new Grammar(_objectSpread2({
     }
   }
 }));
-let DESTRUCTURING = new Grammar({
+let DESTRUCTURING = new shell.Grammar({
   alias: {
     pattern: /([A-Za-z$_][$_A-Za-z0-9_]*)(\s*)(:)(\s*)(?=\w|\{|\[)/,
     replacement: "<span class='entity'>#{1}</span>#{2}#{3}#{4}"
@@ -125,7 +128,7 @@ let DESTRUCTURING = new Grammar({
     pattern: /[A-Za-z$_][$_A-Za-z0-9_]*/
   }
 });
-let MAIN = new Grammar('javascript', {}, {
+let MAIN = new shell.Grammar('javascript', {}, {
   alias: ['js']
 });
 MAIN.extend(VALUES);
@@ -418,24 +421,24 @@ function init$1() {
 }
 
 const GRAMMAR_MAP = {
-  'arduino': Arduino,
-  'html': HTML,
+  'arduino': shell.Arduino,
+  'html': shell.HTML,
   'javascript': MAIN,
-  'jsx': JSX,
-  'python': Python,
-  'ruby': Ruby,
-  'scss': SCSS,
-  'shell': Shell
+  'jsx': shell.JSX,
+  'python': shell.Python,
+  'ruby': shell.Ruby,
+  'scss': shell.SCSS,
+  'shell': shell.Shell
 };
 const GRAMMARS = {
-  Arduino,
-  HTML,
+  Arduino: shell.Arduino,
+  HTML: shell.HTML,
   JavaScript: MAIN,
-  JSX,
-  Python,
-  Ruby,
-  SCSS,
-  Shell
+  JSX: shell.JSX,
+  Python: shell.Python,
+  Ruby: shell.Ruby,
+  SCSS: shell.SCSS,
+  Shell: shell.Shell
 };
 const PLUGIN_MAP = {
   'whitespace-normalizer': init,
@@ -457,7 +460,7 @@ function init$2() {
     grammars = [],
     plugins = []
   } = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-  let highlighter = new Highlighter();
+  let highlighter = new shell.Highlighter();
   let gs = grammars.map(g => GRAMMAR_MAP[g]);
   gs.forEach(g => {
     if (!g) {
@@ -477,4 +480,11 @@ function init$2() {
   return highlighter;
 }
 
-export { GRAMMARS, init$2 as init };
+exports.AsyncHighlighter = shell.AsyncHighlighter;
+exports.Context = shell.Context;
+exports.Grammar = shell.Grammar;
+exports.Highlighter = shell.Highlighter;
+exports.Lexer = shell.Lexer;
+exports.Utils = shell.Utils;
+exports.GRAMMARS = GRAMMARS;
+exports.init = init$2;

@@ -67,35 +67,24 @@ export default [
   },
 
   {
-    input: 'src/all.js',
-    output: [
-      { name: 'daub', file: PACKAGE.main, format: 'cjs' }
-    ],
-    plugins: [
-      resolve(),
-      cjs(),
-      babel({
-        // Only transpile our source code.
-        exclude: 'node_modules/**',
-      }),
-      ...extraPlugins
-    ]
-  },
-  {
-    input: [
-      'src/grammars/index.js',
-      'src/highlighter.js',
-      'src/grammar.js',
-      'src/utils.js'
-    ],
-    output: {
-      name: 'daub',
-      dir: './dist/esm',
-      format: 'esm'
+    input: {
+      index: 'src/all.js',
+      grammars: 'src/grammars/index.js'
     },
+    output: [
+      { dir: 'dist/esm', format: 'esm' },
+      { dir: 'dist/cjs', format: 'cjs' }
+      //
+      // { name: 'daub', file: PACKAGE.main, format: 'cjs' },
+      // { name: 'daub', file: PACKAGE.module, format: 'esm' }
+    ],
     plugins: [
       resolve(),
-      cjs(),
+      cjs({
+        include: [
+          './src/utils/verbose-regexp.js'
+        ]
+      }),
       babel({
         // Only transpile our source code.
         exclude: 'node_modules/**',
@@ -103,4 +92,5 @@ export default [
       ...extraPlugins
     ]
   }
+
 ];
