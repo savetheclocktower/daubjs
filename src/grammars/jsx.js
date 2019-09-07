@@ -483,12 +483,11 @@ let JSX_ATTRIBUTES = new Grammar({
 
   attribute: {
     pattern: /\b([a-zA-Z-:]+)(=)/,
-    replacement: compact(`
-      <span class='attribute'>
-        <span class='#{name}'>#{1}</span>
-        <span class='punctuation'>#{2}</span>
-      </span>
-    `)
+    captures: {
+      '1': 'attribute-name',
+      '2': 'punctuation'
+    },
+    wrapReplacement: true
   }
 }).extend(JSX_INTERPOLATION);
 

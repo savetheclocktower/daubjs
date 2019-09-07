@@ -10,10 +10,8 @@ const LEXER_STRING = new Lexer([
   {
     name: 'string-end',
     pattern: /('|")/,
-    test: (pattern, text, context) => {
+    test: (match, text, context) => {
       let char = context.get('string-begin');
-      let match = pattern.exec(text);
-      if (!match) { return false; }
       if (match[1] !== char) { return false; }
       context.set('string-begin', null);
       return match;
@@ -26,9 +24,7 @@ const LEXER_ATTRIBUTE_VALUE = new Lexer([
   {
     name: 'string-begin',
     pattern: /^\s*('|")/,
-    test: (pattern, text, context) => {
-      let match = pattern.exec(text);
-      if (!match) { return false; }
+    test: (match, text, context) => {
       context.set('string-begin', match[1]);
       return match;
     },

@@ -47,27 +47,27 @@ export default [
   },
 
   // Web worker.
-  // {
-  //   input: 'src/worker.js',
-  //   output: {
-  //     name: 'daub',
-  //     file: 'dist/daub.worker.umd.js',
-  //     format: 'umd'
-  //   },
-  //   plugins: [
-  //     resolve(),
-  //     cjs({
-  //       include: [
-  //         './src/utils/verbose-regexp.js'
-  //       ]
-  //     }),
-  //     babel({
-  //       // Only transpile our source code.
-  //       exclude: 'node_modules/**',
-  //     }),
-  //     ...extraPlugins
-  //   ]
-  // },
+  {
+    input: 'src/worker.js',
+    output: {
+      name: 'daub',
+      file: 'dist/daub.worker.umd.js',
+      format: 'umd'
+    },
+    plugins: [
+      resolve(),
+      cjs({
+        include: [
+          './src/utils/verbose-regexp.js'
+        ]
+      }),
+      babel({
+        // Only transpile our source code.
+        exclude: 'node_modules/**',
+      }),
+      ...extraPlugins
+    ]
+  },
 
   {
     input: './src/all.js',

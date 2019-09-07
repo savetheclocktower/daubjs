@@ -359,7 +359,7 @@ const MAIN = new Grammar('ruby', {
     pattern: /(\+|-|\*|\/|>|&gt;|<|&lt;|=>|=&gt;|>>|&gt;&gt;|<<|&lt;&lt;|=~|\|\|=|==|=|\|\||&&|\+=|-=|\*=|\/=)/
   },
 
-  'keyword special': {
+  'keyword keyword-special': {
     pattern: /\b(initialize|new|loop|extend|raise|attr|catch|throw|private|protected|public|module_function|attr_(?:reader|writer|accessor))\b/
   }
 });
