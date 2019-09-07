@@ -210,16 +210,14 @@ class Grammar {
 }
 
 const MAP = {};
-// Grammar.MAP = {};
+
 Grammar.register = (name, grammar) => {
   MAP[name] = grammar;
 };
+
 Grammar.find = (name) => {
-  console.log('looking up:', name, MAP);
   return MAP[name] || null;
 };
-
-Grammar.debug = () => MAP;
 
 class Rule {
   constructor (name, rule, prevCaptures) {
