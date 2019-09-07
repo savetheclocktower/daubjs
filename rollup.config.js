@@ -15,7 +15,22 @@ if (!process.env.DEBUG) {
   extraPlugins.push(
     strip({
       debugger: true,
-      functions: ['console.debug'],
+      functions: [
+        'console.debug',
+        'console.info',
+        'console.log',
+        'console.warn',
+        'console.group',
+        'console.groupCollapsed',
+        'console.groupEnd',
+        'LOGGER.debug',
+        'LOGGER.info',
+        'LOGGER.log',
+        'LOGGER.warn',
+        'LOGGER.group',
+        'LOGGER.groupCollapsed',
+        'LOGGER.groupEnd'
+      ],
       sourceMap: false
     }),
     terser()
@@ -33,11 +48,7 @@ export default [
     },
     plugins: [
       resolve(),
-      cjs({
-        include: [
-          './src/utils/verbose-regexp.js'
-        ]
-      }),
+      cjs(),
       babel({
         // Only transpile our source code.
         exclude: 'node_modules/**',
@@ -56,11 +67,7 @@ export default [
     },
     plugins: [
       resolve(),
-      cjs({
-        include: [
-          './src/utils/verbose-regexp.js'
-        ]
-      }),
+      cjs(),
       babel({
         // Only transpile our source code.
         exclude: 'node_modules/**',
@@ -77,11 +84,7 @@ export default [
     ],
     plugins: [
       resolve(),
-      cjs({
-        include: [
-          './src/utils/verbose-regexp.js'
-        ]
-      }),
+      cjs(),
       babel({
         // Only transpile our source code.
         exclude: 'node_modules/**',

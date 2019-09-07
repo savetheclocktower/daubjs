@@ -31,6 +31,8 @@ class AsyncHighlighter {
 
     this._setupWorker();
     this.uid = 0;
+    this.elements = [];
+    this._callbacks = {};
   }
 
   addElement (element) {
@@ -46,16 +48,17 @@ class AsyncHighlighter {
     return language;
   }
 
-  highlight () {
-    console.log('AsyncHighlighter#scan');
+  scan (node, callback = null) {
     let selector = `code:not([data-daub-highlighted])`;
     let nodes = Array.from(
-      this.node.querySelectorAll(selector)
+      node.querySelectorAll(selector)
     );
     if (!nodes || !nodes.length) { return; }
 
+    let length = nodes.length;
+    let complete = 0;
+
     nodes.forEach(element => {
-      console.log('AsyncHighlighter Handling node:', element);
       let uid = this.uid;
       element.setAttribute('data-daub-uid', this.uid++);
 
@@ -64,25 +67,32 @@ class AsyncHighlighter {
       let language = this._getLanguage(element);
       // TODO: Encode?
       this.parse(source, language, uid, (parsed) => {
-        console.log('[AsyncHighlighter] Got source back:', source);
+        complete++;
+        if (complete === length) {
+          // All found nodes are done highlighting.
+          if (callback) { callback(); }
+        }
         this._updateElement(element, parsed, language);
         element.setAttribute('data-daub-highlighted', 'true');
-        let meta = { element, language };
         this._fire(
           'highlighted',
           element,
-          meta,
+          { element, language },
           { cancelable: false }
         );
       });
     });
   }
 
+  highlight (callback = null) {
+    this.elements.forEach(el => this.scan(el));
+  }
+
   _handleMessage (e) {
-    console.log('AsyncHighlighter handling message:', e);
     let { id, language, source } = e.data;
     let element = this.node.querySelector(`[data-daub-uid="${id}"]`);
-    console.log(' does the element exist?', id, element);
+    let callback = this._callbacks[id];
+    delete this._callbacks[id];
     if (!element) {
       // How do we prevent stale highlighting results from being displayed? The
       // process of triggering a newer highlighting pass for that element gave
@@ -90,11 +100,11 @@ class AsyncHighlighter {
       // That's the code path we're in right now.
       return;
     }
-    this._updateElement(element, source, language);
+    // this._updateElement(element, source, language);
+    if (callback) { callback(source); }
   }
 
   _setupWorker () {
-    console.log('setting up worker:', this.worker);
     this.worker.onmessage = (e) => this._handleMessage(e);
   }
 
@@ -139,6 +149,8 @@ class AsyncHighlighter {
     if (!language) {
       throw new Error(`Must specify a language!`);
     }
+
+    this._callbacks[uid] = callback;
 
     this.worker.postMessage({
       type: 'parse',

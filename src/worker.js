@@ -1,16 +1,26 @@
 /* eslint-env worker */
 import Grammar from './grammar';
+import Context from './context';
+import Logger from './logger';
 
 import * as GRAMMARS from './grammars';
 
-console.log('GRAMMARS:', Grammar.debug());
+const LOGGER = new Logger('worker');
 
 function postError (error) {
   postMessage({ error });
 }
 
+function parseLanguage (text, language, context) {
+  let grammar = Grammar.find(language);
+  if (!grammar) {
+    throw new Error(`No such grammar: ${language}`);
+  }
+  return grammar.parse(text, context);
+}
+
 onmessage = function (event) {
-  console.log('[worker] Message:', event);
+  LOGGER.log('Message:', event);
   let { type } = event.data;
   switch (type) {
     case 'parse': {
@@ -22,7 +32,10 @@ onmessage = function (event) {
         return;
       }
 
-      let source = grammar.parse(text);
+      let context = new Context({
+        highlighter: { parse: parseLanguage }
+      });
+      let source = grammar.parse(text, context);
       postMessage({ id, language, source });
       break;
     }

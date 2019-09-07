@@ -51,13 +51,11 @@ var Support = {
 
     if (IS_ASYNC) {
       HIGHLIGHTER = new daub.AsyncHighlighter({
-        worker: WORKER,
-        node: root
+        worker: WORKER
       });
     } else {
       HIGHLIGHTER = new daub.Highlighter();
-      HIGHLIGHTER.addElement(root);
-      let grammar = daub.Grammar.find(GRAMMAR);
+      var grammar = daub.Grammar.find(GRAMMAR);
       if (grammar) {
         HIGHLIGHTER.addGrammar(grammar);
       } else {
@@ -67,60 +65,29 @@ var Support = {
       }
     }
 
+    HIGHLIGHTER.addElement(root);
 
-    // highlighter = daub.init({
-    //   grammars: [grammar],
-    //   plugins: [
-    //     'line-highlighter',
-    //     'whitespace-normalizer'
-    //   ]
-    // });
-    // const WORKER = new Worker('../src/worker.js');
-    //
-    // WORKER.onmessage = function (event) {
-    //   console.log('message:', event);
-    //   console.log(event.data);
-    // };
-    //
-
-    // let codes = document.querySelectorAll(`code[class=javascript-jsx]`);
-    // console.log('CODES', codes);
-    //
-    // codes.forEach(function (code, index) {
-    //   let text = code.innerText;
-    //   // let grammar = code.getAttribute('class');
-    //   let message = {
-    //     id: index,
-    //     grammar,
-    //     text
-    //   };
-    //   console.log('posting message:');
-    //   WORKER.postMessage(message);
-    // });
-
-    // WORKER.postMessage({ 'daub': '../dist/daub.umd.js' });
-
-    // If there's a PRE element with a `data-only` attribute, highlight only
-    // that element. Useful for debugging.
-    // if (document.querySelector('[data-only]')) {
-    //   HIGHLIGHTER.addElement( document.querySelector('[data-only]')
-    //   );
-    // } else {
-    //   HIGHLIGHTER.addElement(document.body);
-    // }
-
-    let start, end;
+    var start, end;
     start = performance.now();
     if (performance && performance.mark) {
       performance.mark('daub-before');
     }
-    HIGHLIGHTER.highlight();
-    if (performance && performance.mark) {
-      performance.mark('daub-after');
-      performance.measure('daub-before', 'daub-after');
+
+    var markEnd = function () {
+      if (performance && performance.mark) {
+        performance.mark('daub-after');
+        performance.measure('daub-before', 'daub-after');
+      }
+      end = performance.now();
+      console.log('Highlight time:', end - start, 'ms');
+    };
+
+    if (IS_ASYNC) {
+      HIGHLIGHTER.highlight(markEnd);
+    } else {
+      HIGHLIGHTER.highlight();
+      markEnd();
     }
-    end = performance.now();
-    console.log('Highlight time:', end - start, 'ms');
 
     // Keep the chosen section in view.
     let hash = window.location.hash;
