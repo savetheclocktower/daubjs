@@ -407,7 +407,7 @@ let INSIDE_TEMPLATE_STRINGS = new Grammar({
 }).extend(ESCAPES);
 
 const PARAMETERS = new Grammar({
-  'parameter parameter-with-default': {
+  'meta: parameter with default': {
     pattern: /([A-Za-z$_][$_A-Za-z0-9_]*)(\s*=\s*)(.*?)(?=,|\)|\n|$)/,
     captures: {
       '1': 'variable parameter',
@@ -422,13 +422,13 @@ const PARAMETERS = new Grammar({
 
   operator: { pattern: /=/ },
 
-  'variable parameter': {
+  'variable variable-parameter': {
     pattern: /[A-Za-z$_][$_A-Za-z0-9_]*/
   }
 });
 
 let STRINGS = new Grammar({
-  'string string-template embedded': {
+  'string string-template': {
     pattern: /(`)((?:[^`\\]|\\\\|\\.)*)(`)/,
     captures: {
       '1': 'punctuation string-start',
@@ -577,7 +577,7 @@ let JSX_TAGS = new Grammar({
       // otherwise, we move it back to the end of capture group 4.
       r[2] = handleJsxOrHtmlTag(r[2]);
       if (r[5]) {
-        if (r[5]=== '/') {
+        if (r[5] === '/') {
           r.name = r.name.replace('element-opening', 'element-self');
           r[5] = wrap(r[5], 'punctuation');
         } else {
@@ -624,13 +624,13 @@ let ARROW_FUNCTION_PARAMETERS = new Grammar({
       '3': 'punctuation'
     }
   },
-  'variable parameter': {
+  'variable variable-parameter': {
     pattern: /[\w$][\w\d_$]*/
   }
 });
 
 let ARROW_FUNCTIONS = new Grammar({
-  'single-parameter multiline arrow function': {
+  'meta: single-parameter multiline arrow function': {
     pattern: VerboseRegExp`
       ([\w$][\w\d$]*) # any single identifier
       (\s*) # optional space

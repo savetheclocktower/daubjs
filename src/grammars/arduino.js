@@ -3,7 +3,7 @@ import { Grammar, Utils } from '../daub';
 const { balance, compact, VerboseRegExp } = Utils;
 
 let PARAMETERS = new Grammar({
-  'parameter': {
+  'meta: parameter': {
     pattern: VerboseRegExp`
       (?:\b|^)
       (
@@ -15,15 +15,9 @@ let PARAMETERS = new Grammar({
       ([a-zA-Z_$:][\w\d]*)      # 3: variable name
       (?=,|$)     # 4: end of parameter/signature
     `,
-    replacement: compact(`
-      <span class="parameter">
-        <span class="storage storage-type">#{1}</span>
-        #{2}
-        <span class="variable">#{3}</span>
-      </span>
-    `),
     captures: {
-      '1': () => STORAGE
+      '1': () => STORAGE,
+      '3': 'variable variable-parameter'
     }
   }
 });
@@ -56,8 +50,9 @@ const DECLARATIONS = new Grammar({
       // balanced.
       return match.indexOf('{', parenIndex) - 1;
     },
-    replacement: "<b><span class='storage storage-type storage-return-type'>#{1}</span>#{2}#{3}#{4}#{5}#{6}#{7}#{8}</b>",
+    // replacement: "<b>#{1}#{2}#{3}#{4}#{5}#{6}#{7}#{8}</b>",
     captures: {
+      '1': 'storage storage-type storage-return-type',
       '3': 'entity',
       '6': () => PARAMETERS
     }
@@ -124,8 +119,7 @@ const DECLARATIONS = new Grammar({
 
     index (match) {
       let balanceIndex = balance(match, ')', '(') + 1;
-      let index = match.indexOf(';', balanceIndex);
-      return index;
+      return match.indexOf(';', balanceIndex);
     },
     captures: {
       '1': 'storage storage-type',

@@ -104,7 +104,7 @@ const ARGUMENTS = new Grammar({
   'meta: parameter with default': {
     pattern: /(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*?)(?=,|$)/,
     captures: {
-      '2': 'variable parameter',
+      '2': 'variable variable-parameter',
       '3': 'keyword punctuation',
       '4': VALUES
     }
@@ -116,7 +116,7 @@ const PARAMETERS_WITHOUT_DEFAULT = new Grammar({
     pattern: /(\s*)(\*\*?)?([A-Za-z0-9_]+)(?=,|$)/,
     captures: {
       '2': 'keyword operator',
-      '3': 'variable parameter'
+      '3': 'variable variable-parameter'
     }
   }
 });
@@ -125,7 +125,7 @@ const PARAMETERS = new Grammar({
   'meta: parameter with default': {
     pattern: /(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*?)(?=,|$)/,
     captures: {
-      '2': 'variable parameter',
+      '2': 'variable variable-parameter',
       '3': 'keyword punctuation',
       '4': () => VALUES
     }

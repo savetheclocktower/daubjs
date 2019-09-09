@@ -1,5 +1,5 @@
 import { Grammar, Utils } from '../daub';
-const { balanceByLexer, compact, VerboseRegExp } = Utils;
+const { balanceByLexer, compact, VerboseRegExp, wrap } = Utils;
 import Lexer from '../lexer';
 
 const LEXER_STRING = new Lexer([
@@ -91,18 +91,33 @@ const ATTRIBUTES = new Grammar({
 
   attribute: {
     pattern: /\b([a-zA-Z-:]+)(=)/,
-    replacement: compact(`
-      <span class='attribute'>
-        <span class='#{name}'>#{1}</span>
-        <span class='punctuation'>#{2}</span>
-      </span>
-    `)
+    captures: {
+      '1': 'attribute-name',
+      '2': 'punctuation'
+    }
+  }
+});
+
+const ENTITIES = new Grammar({
+  'constant constant-html-entity constant-html-entity-named': {
+    pattern: /(&amp;)[a-z]+;/
+  },
+  'constant constant-html-entity constant-html-entity-numeric': {
+    pattern: VerboseRegExp`
+      (&amp;)
+      \#
+      (
+        [0-9]+|          # decimal OR
+        [xX][0-9a-fA-F]+  # hexadecimal
+      )
+      ;
+    `
   }
 });
 
 const MAIN = new Grammar('html', {
   doctype: {
-    pattern: /&lt;!DOCTYPE([^&]|&[^g]|&g[^t])*&gt;/
+    pattern: /(?:<|&lt;)!DOCTYPE([^&]|&[^g]|&g[^t])*(?:>|&gt;)/
   },
 
   'embedded embedded-javascript': {
@@ -126,45 +141,72 @@ const MAIN = new Grammar('html', {
         <span class='punctuation'>#{8}</span>
       </span>
     `),
+    captures: {
+      '3': ATTRIBUTES
+    },
     before: (r, context) => {
-      if (r[3]) {
-        r[3] = ATTRIBUTES.parse(r[3], context);
-      }
       r[5] = context.highlighter.parse(r[5], 'javascript', context);
     }
   },
 
-  'tag tag-open': {
-    pattern: /((?:<|&lt;))([a-zA-Z0-9:]+\s*)([\s\S]*)(\/)?(&gt;|>)/,
-    index: (match, ...args) => {
+  'element element-opening': {
+    pattern: VerboseRegExp`
+      (<|&lt;)       # 1: opening angle bracket
+      ([a-zA-Z\-:]+)   # 2: any tag name (hyphens are allowed in web component tag names)
+      (?:
+        (\s+)          # 3: space
+        ([\s\S]*)      # 4: middle-of-tag content
+      )?
+      (.)            # 5: lsat character before closing bracket
+      (&gt;|>)       # 6: closing bracket
+    `,
+    replacement: compact(`
+      <span class='#{name}'>
+        <span class='punctuation'>#{1}</span>
+        <span class='tag tag-html'>#{2}</span>
+        #{3}#{4}#{5}
+        <span class='punctuation'>#{6}</span>
+      </span>
+    `),
+    index (match, ...args) {
       return balanceByLexer(match, LEXER_TAG_START);
     },
-    replacement: compact(`
-      <span class='element element-opening'>
-        <span class='punctuation'>#{1}</span>
-        <span class='tag'>#{2}</span>#{3}
-        <span class='punctuation'>#{4}#{5}</span>
-      </span>#{6}
-    `),
-    before: (r, context) => {
-      r[3] = ATTRIBUTES.parse(r[3], context);
+    before (r, context) {
+      // Find the first group before group 5 that has content.
+      let i = 4;
+      while (r[i] === undefined) { i--; }
+      if (r[5]) {
+        if (r[5] === '/') {
+          // The slash should be punctuation.
+          r.name = r.name.replace('element-opening', 'element-self');
+          r[5] = wrap(r[5], 'punctuation');
+        } else {
+          // It isn't a slash, so join it with the group it would've otherwise
+          // been a part of.
+          console.error('joining with group:', i, r[i]);
+          r[i] += r[5];
+          r[5] = '';
+        }
+      }
+      if (r[4]) { r[4] = ATTRIBUTES.parse(r[4], context); }
     }
   },
 
-  'tag tag-close': {
-    pattern: /(&lt;\/)([a-zA-Z0-9:]+)(&gt;)/,
-    replacement: compact(`
-      <span class='element element-closing'>
-        <span class='punctuation'>#{1}</span>
-        <span class='tag'>#{2}</span>
-        <span class='punctuation'>#{3}</span>
-      </span>
-    `)
+  'element element-closing': {
+    pattern: /((?:<|&lt;)\/)([a-zA-Z:\-]+)(>|&gt;)/,
+    captures: {
+      '1': 'punctuation',
+      '2': 'tag tag-html',
+      '3': 'punctuation'
+    },
+    wrapReplacement: true
   },
 
   comment: {
-    pattern: /&lt;!\s*(--([^-]|[\r\n]|-[^-])*--\s*)&gt;/
+    pattern: /(?:<|&lt;)!\s*(--([^-]|[\r\n]|-[^-])*--\s*)(?:>|&gt;)/
   }
 }, { encode: true });
+
+MAIN.extend(ENTITIES);
 
 export default MAIN;

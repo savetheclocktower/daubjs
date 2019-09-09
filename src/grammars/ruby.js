@@ -67,7 +67,7 @@ const PARAMETERS = new Grammar({
   'meta: parameter with default': {
     pattern: (/^(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*)/),
     captures: {
-      '2': 'variable parameter',
+      '2': 'variable variable-parameter',
       '3': 'keyword operator',
       '4': () => VALUES
     }
@@ -76,7 +76,7 @@ const PARAMETERS = new Grammar({
   'meta: variable': {
     pattern: (/^(\s*)([A-Za-z0-9_]+)$/),
     captures: {
-      '2': 'variable parameter'
+      '2': 'variable variable-parameter'
     }
   }
 });
@@ -86,7 +86,7 @@ const BLOCK_PARAMETERS = new Grammar({
   'meta: block variable': {
     pattern: (/^(\s*)([A-Za-z0-9_]+)$/),
     captures: {
-      '2': 'variable parameter'
+      '2': 'variable variable-parameter'
     }
   }
 });

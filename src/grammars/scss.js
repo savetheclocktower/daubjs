@@ -97,20 +97,33 @@ const VARIABLES = new Grammar({
 }).extend(VARIABLE);
 
 const PARAMETERS = new Grammar({
-  'parameter parameter-with-default': {
-    pattern: /(\$[A-Za-z][A-Za-z0-9_-]*)(\s*:\s*)(.*?)(?=,|\)|\n)/,
-    replacement: compact(`
-      <span class="parameter">
-        #{1}#{2}#{3}
-      </span>
-    `),
+  'meta: parameter with default': {
+    pattern: VerboseRegExp`
+      (\$[\w\-][\w\d\-]*) # 1: identifier
+      (\s*)               # 2: space
+      (:)                 # 3: colon
+      (\s*)               # 4: space
+      (.*?)               # 5: stuff
+      (?=,|\),\n)         # lookahead: end of line or statement
+    `,
     captures: {
-      '1': 'variable',
-      '2': 'punctuation',
-      '3': () => VALUES
+      '1': 'variable variable-parameter',
+      '3': 'punctuation',
+      '5': () => VALUES
     }
+    // pattern: /(\$[A-Za-z][A-Za-z0-9_-]*)(\s*:\s*)(.*?)(?=,|\)|\n)/,
+    // replacement: compact(`
+    //   <span class="parameter">
+    //     #{1}#{2}#{3}
+    //   </span>
+    // `),
+    // captures: {
+    //   '1': 'variable',
+    //   '2': 'punctuation',
+    //   '3': () => VALUES
+    // }
   }
-}).extend( variableRuleNamed('variable parameter') );
+}).extend( variableRuleNamed('variable variable-parameter') );
 
 const SELECTORS = new Grammar({
   'selector selector-class selector-abstract-class': {
@@ -145,11 +158,22 @@ const SELECTORS = new Grammar({
     }
   },
 
-  'selector selector-self-reference-bem-style': {
-    pattern: /(?:&amp;|&)(?:__|--)(?:[A-Za-z0-9_-]+)?/
+  'meta: BEM self-reference pattern': {
+    pattern: VerboseRegExp`
+      (&amp;)  # 1: ampersand
+      (        # 2: token
+        (?:__|--)
+        (?:[\w\d\-]+)? # optional because it could be followed by an interpolation, not text
+      )
+    `,
+    captures: {
+      '1': 'selector selector-self-reference-bem-style selector-element',
+      '2': 'selector selector-class selector-self-reference-bem-style'
+    }
+    // pattern: /(?:&amp;|&)(?:__|--)(?:[A-Za-z0-9_-]+)?/,
   },
 
-  'selector selector-interpolation': {
+  'selector selector-interpolation embedded': {
     pattern: /(#\{)(.*)(\})/,
     index: (match) => {
       return balance(
