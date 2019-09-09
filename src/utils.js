@@ -5,19 +5,36 @@ import Template, {
 } from './template';
 import { VerboseRegExp } from './utils/verbose-regexp';
 
-// Find the next "balanced" occurrence of the token. Searches through the
-// string unit by unit. Whenever the `paired` token is encountered, the
-// stack size increases by 1. When `token` is encountered, the stack size
-// decreases by 1, and if the stack size is already 0, that's our desired
-// token.
+/**
+ * Find the next “balanced” occurrence of the token. Searches through the string
+ * unit by unit. Whenever the `paired` token is encountered, the stack depth
+ * increases by one. Whenever `token` is encountered, the stack depth decreases
+ * by one. When the stack depth decreases from one to zero, the index of that
+ * match is returned.
+ *
+ * @param {string} source The source text.
+ * @param {[type]} token The token which decreases the stack depth when it
+ *   occurs. Can be of any length.
+ * @param {[type]} paired The token which increases the stack depth when it
+ *   occurs.
+ * @param {Object} [options={}] Options.
+ * @param {number} [startIndex=0] The index at which to start searching.
+ * @param {number} [startDepth=0] The starting stack depth.
+ * @param {boolean} [considerEscapes=true] When `true`, occurrences of both
+ *   `token` and `paired` will be ignored when they occur immediately after a
+ *   backslash. (Does not yet consider other escape sequences, nor potential
+ *   false positives like a preceding literal backslash.)
+ * @returns {number} The first index at which `token` occurs when balanced, or
+ *   `-1` if a balanced occurrence of `token` is not found.
+ */
 function balance(source, token, paired, options = {}) {
   options = Object.assign(
-    { startIndex: 0, stackDepth: 0, considerEscapes: true },
+    { startIndex: 0, startDepth: 0, considerEscapes: true },
     options
   );
 
   let lastChar;
-  let { startIndex, stackDepth, considerEscapes } = options;
+  let { startIndex, startDepth: depth, considerEscapes } = options;
   let tl = token.length;
   let pl = paired.length;
   let length = source.length;
@@ -29,169 +46,49 @@ function balance(source, token, paired, options = {}) {
     let pairCandidate = source.slice(i, i + pl);
 
     if (pairCandidate === paired && !escaped) {
-      stackDepth++;
+      depth++;
     }
 
     if (candidate === token && !escaped) {
-      stackDepth--;
-      if (stackDepth === 0) { return i; }
+      depth--;
+      if (depth === 0) { return i; }
     }
   }
 
   return -1;
 }
 
-// Given a multiline string, removes all space at the beginnings of lines.
-// Lets us define replacement strings with indentation, yet have all that
-// extraneous space stripped out before it gets into the replacement.
+/**
+ * Given a multiline string, removes all newlines and all space that occurs
+ * immediately after newlines.
+ *
+ * Lets us define replacement strings with indentation, yet have all that
+ * extraneous space stripped out before it goes into the replacement.
+ *
+ * @param   {string} str The string to compact.
+ * @returns {string} The compacted string.
+ */
 function compact (str) {
   str = str.replace(/^[\s\t]*/mg, '');
   str = str.replace(/\n/g, '');
   return str;
 }
 
-// Wrap a string in a `span` with the given class name.
+/**
+ * Wraps a string with an HTML `span` tag with a given class name, unless the
+ * string is empty.
+ *
+ * @param {string} str The string to wrap.
+ * @param {string} className The class name(s) to add to the `span` _if_ the
+ *   string is wrapped.
+ * @returns {string} The wrapped string.
+ */
 function wrap (str, className) {
   if (!str) { return ''; }
   return `<span class="${className}">${str}</span>`;
 }
 
-// function regexpEscape (str) {
-//   return str.replace(
-//     /[-\/\\^$*+?.()|[\]{}]/g,
-//     '\\$&'
-//   );
-// }
-
-function balanceQuotes (text, iterator, options = {}) {
-  options = {
-    character: '"',
-    startIndex: 0,
-    breakWhenStackBalances: false,
-    ...options
-  };
-
-  let { startIndex, character } = options;
-
-  let pattern = new RegExp(character, 'g');
-  // pattern.lastIndex = startIndex;
-  let count = 0;
-
-  let isOpen = false;
-  let initialized = false;
-  let lastIndex;
-  let currentIndex = startIndex;
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    lastIndex = currentIndex;
-    let found = pattern.exec(text);
-    if (!found || found.index === -1) {
-      break;
-    }
-    count++;
-    isOpen = (count % 2 === 1);
-    initialized = true;
-    currentIndex = found.index + found[0].length;
-
-    let iteratorResult = iterator(
-      isOpen,
-      { currentIndex, lastIndex },
-      {
-        currentSlice: text.slice(currentIndex, text.length),
-        lastSlice: text.slice(lastIndex, currentIndex)
-      },
-      false
-    );
-
-    if (iteratorResult === false) { break; }
-    if ((!isOpen && initialized) && options.breakWhenStackBalances) { break; }
-    if (currentIndex < lastIndex) {
-      throw new Error(`Infinite loop detected!`);
-    }
-  }
-
-  iterator(
-    isOpen,
-    { currentIndex: text.length, lastIndex: currentIndex },
-    {
-      currentSlice: text.slice(currentIndex, text.length),
-      lastSlice: text.slice(currentIndex, text.length)
-    },
-    true
-  );
-
-  return currentIndex;
-}
-
-
-function balancePattern (text, patternOpen, patternClose, options = {}) {
-  options = {
-    startIndex: 0,
-    stackDepth: 0,
-    iterator: () => {},
-    breakWhenStackIsZero: true,
-    ...options
-  };
-
-  let { stackDepth: depth, startIndex } = options;
-
-  patternOpen.lastIndex = startIndex;
-  patternClose.lastIndex = startIndex;
-
-  let initialized = depth > 0;
-
-  let lastIndex;
-  let currentIndex = startIndex;
-  while ((depth > 0 || !initialized) && options.breakWhenStackIsZero) {
-    lastIndex = currentIndex;
-    let foundOpen = patternOpen.exec(text);
-    let foundClose = patternClose.exec(text);
-
-    if (!foundOpen && !foundClose) {
-      return -1;
-    } else if (!foundClose) {
-      // Only the close pattern matched; use its index.
-      currentIndex = foundOpen.index + foundOpen[0].length;
-      depth++;
-      initialized = true;
-    } else if (!foundOpen) {
-      currentIndex = foundClose.index + foundClose[0].length;
-      depth--;
-      initialized = true;
-    } else {
-      // Both patterns matched.
-      if (foundOpen.index === foundClose.index) {
-        throw new Error(`Poorly written balancers! Matched on same index.`);
-      }
-      if (foundOpen.index < foundClose.index) {
-        currentIndex = foundOpen.index + foundOpen[0].length;
-        depth++;
-        initialized = true;
-      } else {
-        currentIndex = foundClose.index + foundClose[0].length;
-        depth--;
-        initialized = true;
-      }
-    }
-
-    patternOpen.lastIndex = currentIndex;
-    patternClose.lastIndex = currentIndex;
-    let iteratorResult = options.iterator(
-      depth,
-      currentIndex,
-      text.slice(currentIndex, text.length)
-    );
-    if (iteratorResult === false) { break; }
-    if (currentIndex < lastIndex) {
-      throw new Error(`Infinite loop detected!`);
-    }
-  }
-
-  // If we get this far, the stack depth is back at 0.
-  return currentIndex;
-}
-
+// So that I don't have to pull in an `Array#flat` polyfill.
 function flatten (array) {
   var result = [];
   (function flat(array) {
@@ -203,12 +100,12 @@ function flatten (array) {
   return result;
 }
 
-function _getLastToken (results) {
+function getLastToken (results) {
   for (let i = results.length - 1; i >= 0; i--) {
     let token = results[i];
     if (typeof token === 'string') { continue; }
     if ( Array.isArray(token.content) ) {
-      return _getLastToken(token.content);
+      return getLastToken(token.content);
     } else {
       return token;
     }
@@ -216,25 +113,21 @@ function _getLastToken (results) {
   return null;
 }
 
+/**
+ * Given a string of text and a lexer instance, returns the index at which the
+ * lexer had its last match. Useful for balancing tokens that are more complex
+ * than can be handled by the simpler `balance` function.
+ *
+ * @param {string} text The string.
+ * @param {Lexer} lexer An instance of `Lexer`.
+ * @returns {number} The index of the final character of the final token that
+ *   was matched by the lexer.
+ */
 function balanceByLexer (text, lexer) {
   let results = lexer.run(text);
-  let lastToken = _getLastToken(results.tokens);
+  let lastToken = getLastToken(results.tokens);
   let index = lastToken.index + lastToken.content.length - 1;
   return index;
-}
-
-function flattenTokens (tokens) {
-  let result = [];
-  function f (tokens) {
-    tokens.forEach(token => {
-      result.push(token);
-      if (Array.isArray(token.content)) {
-        f(token.content);
-      }
-    });
-  }
-  f(tokens);
-  return result;
 }
 
 export {
@@ -242,7 +135,6 @@ export {
   balanceByLexer,
   compact,
   escapeRegExp,
-  flattenTokens,
   gsub,
   regExpToString,
   wrap,

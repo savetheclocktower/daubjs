@@ -277,7 +277,7 @@ let VALUES = new Grammar({
 });
 
 function wrapParameter (param) {
-  return `<span class="variable parameter">${param}</span>`;
+  return `<span class="variable variable-parameter">${param}</span>`;
 }
 
 const DEFAULT_VALUE_PATTERN = /^(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*)/;

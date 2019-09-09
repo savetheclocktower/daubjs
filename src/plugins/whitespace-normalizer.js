@@ -45,7 +45,6 @@ function findLastTextNode (fragment) {
   return null;
 }
 
-// eslint-disable-next-line no-unused-vars
 function findAllTextNodes (fragment) {
   let walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
   let results = [];
@@ -83,6 +82,12 @@ function handler (event) {
   }
 }
 
+/**
+ * A plugin that strips leading and trailing newlines from the contents of any
+ * `code` element within a `pre` element.
+ *
+ * @alias whitespace-normalizer
+ */
 function init () {
   document.addEventListener('daub-will-highlight', handler);
   return cleanup;

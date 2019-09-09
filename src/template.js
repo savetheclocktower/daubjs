@@ -100,12 +100,29 @@ function gsub (source, pattern, replacement) {
 }
 
 
+/**
+ * A class describing an abstract interpolation. Can later be supplied with data
+ * to produce a string.
+ *
+ * @param {String} template A string describing an interpolation.
+ */
 class Template {
-  constructor (template, pattern) {
+  constructor (template) {
     this.template = String(template);
-    this.pattern = pattern || Template.DEFAULT_PATTERN;
+
+    // Prototype's version allowed for this pattern to be customized, but that
+    // makes no sense in Daub.
+    this.pattern = Template.DEFAULT_PATTERN;
   }
 
+  /**
+   * Apply data to a template to produce a string.
+   *
+   * @param   {Object|Array} object Any object — but usually a plain object or
+   *   an array — whose properties you want to make available by name for the
+   *   interpolation
+   * @returns {string} The interpolated string.
+   */
   evaluate (object) {
     return gsub(this.template, this.pattern, (match) => {
       if (object == null) return '';

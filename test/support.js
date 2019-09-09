@@ -13,7 +13,7 @@ if (IS_ASYNC) {
 var Support = {
   setup () {
     if (!GRAMMAR) {
-      let meta = document.querySelector(`meta[name="language"]`);
+      let meta = document.querySelector(`meta[name="language"], meta[name="daub-language"]`);
       if (meta) {
         GRAMMAR = meta.getAttribute('value');
       } else {
@@ -55,9 +55,12 @@ var Support = {
       });
     } else {
       HIGHLIGHTER = new daub.Highlighter();
-      var grammar = daub.Grammar.find(GRAMMAR);
-      if (grammar) {
-        HIGHLIGHTER.addGrammar(grammar);
+      if (GRAMMAR) {
+        let grammarNames = GRAMMAR.split(/,\s*/);
+        let grammars = grammarNames.map(g => daub.Grammar.find(g));
+        grammars.forEach(g => {
+          if (g) { HIGHLIGHTER.addGrammar(g); }
+        });
       } else {
         for (var key in daub.GRAMMARS) {
           HIGHLIGHTER.addGrammar(daub.GRAMMARS[key]);

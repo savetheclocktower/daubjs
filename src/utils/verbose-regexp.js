@@ -7,14 +7,14 @@
 // Rollup should still do the right thing so that VerboseRegExp is available to
 // custom grammars as a runtime import.
 
-function _isEscapedHash (line, index) {
+function isEscapedHash (line, index) {
   return (index === 0) ? false : line.charAt(index - 1) === '\\';
 }
 
-function _trimCommentsFromLine (line) {
+function trimCommentsFromLine (line) {
   let hashIndex = -1;
   do { hashIndex = line.indexOf('#', hashIndex + 1); }
-  while ( hashIndex > -1 && _isEscapedHash(line, hashIndex) );
+  while ( hashIndex > -1 && isEscapedHash(line, hashIndex) );
 
   if (hashIndex > -1) { line = line.substring(0, hashIndex); }
   line = line.trim();
@@ -33,7 +33,7 @@ function VerboseRegExp (str) {
   let raw = str.raw[0];
 
   let pattern = raw.split(/\n/)
-    .map(_trimCommentsFromLine)
+    .map(trimCommentsFromLine)
     .join('')
     .replace(/\s/g, '');
 

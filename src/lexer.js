@@ -1,6 +1,4 @@
-// TODO: Instead of defining an iterator for `Lexer`, manually expand `include`
-// rules at instantiation time so that we can save having to include
-// `regenerator-runtime`.
+import Context from './context';
 
 function resolve (value) {
   if (typeof value === 'function') { return value(); }
@@ -26,24 +24,49 @@ class LexerError extends Error {
   }
 }
 
-// A token is a string fragment with contextual information. It has a name,
-// content, and an `index` value that corresponds to where it begins in the
-// original string. A token's content can be either a string or an array of
-// Tokens.
+/**
+ * A string fragment with contextual information. It has a name, content, and an
+ * `index` value that corresponds to where it begins in the original string. A
+ * token's content can be either a string or an array of tokens.
+ *
+ * Tokens are created automatically by lexers.
+ */
 class Token {
   constructor (name, content, index, lengthConsumed) {
+    /**
+     * The name of the token. Determined by the name of the lexer rule that
+     * created this token.
+     * @type {string}
+     */
     this.name = name;
+
+    /**
+     * The content of the token. Either a string or an array of `Token`s.
+     * @type {string|Token[]}
+     */
     this.content = content;
 
     // “Length consumed” refers to the number of characters that have already
     // been processed in the original source string. All our indices should be
     // relative to this value.
 
-    // The index of the original text at which this token matched.
+    /**
+     * The index of the original string at which this token matched.
+     * @type {number}
+     */
     this.index = lengthConsumed + index;
   }
 }
 
+/**
+ * A class that consumes a string based on a series of rules. Can include other
+ * lexers or designate “sub-lexers” for certain rules.
+ *
+ * @param {Object[]} rules A collection of rules. Each rule object must satisfy
+ *   the “rule” contract.
+ * @param {String} [name = ''] A name for the lexer. Optional; used for
+ *   debugging.
+ */
 class Lexer {
   constructor (rules, name = '') {
     this.rules = rules;
@@ -52,13 +75,18 @@ class Lexer {
     this.name = name;
   }
 
+  /**
+   * Add rules to the lexer.
+   *
+   * @param {Object[]} rules An array of rules. Each rule object must satisfy
+   *   the “rule” contract.
+   */
   addRules (rules) {
     this.rules.push(...rules);
   }
 
   // To iterate through a lexer is to iterate through its rules.
   [Symbol.iterator] () {
-
     let allRules = [];
     for (let rule of this.rules) {
       if (rule.include) {
@@ -71,11 +99,30 @@ class Lexer {
     return allRules.values();
   }
 
+  /**
+   * Attempt to consume part or all of a string with this lexer.
+   *
+   * Will use its rules to break the string into tokens, matching as close to
+   * the beginning of the string as possible with each successive matching
+   * attempt.
+   *
+   * @param {[type]} text The text to consume.
+   * @param {[type]} [context=null] A context object to reuse. If one is not
+   *   given, a fresh context will be created. All invocations of sub-lexers by
+   *   this lexer will share the same context instance.
+   * @param {Object} [options={}] A series of options.
+   * @param {Number} [options.startIndex=0] The index on which to start lexing
+   *   the string. Defaults to 0.
+   *
+   * @returns {Object} An object with two keys: `results` and `text`. The
+   *   `results` key refers to an array of `Token`s and raw strings. The `text`
+   *   key contains whatever fragment of the string could not be parsed.
+   */
   run (text, context = null, { startIndex = 0 } = {}) {
     let isRoot = context === null;
     let tokens = [];
     if (!context) {
-      context = new Map();
+      context = new Context();
     }
 
     let lastText = null;

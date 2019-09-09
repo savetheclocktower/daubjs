@@ -104,6 +104,12 @@ function handler (event) {
   });
 }
 
+/**
+ * A plugin that allows you to highlight particular lines in your code block by
+ * annotating your `pre` or `code` element with a `data-lines` attribute.
+ *
+ * @alias line-highlighter
+ */
 function init () {
   document.addEventListener('daub-will-highlight', handler);
   return cleanup;

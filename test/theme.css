@@ -1,6 +1,5 @@
 
 pre {
-  /* background-color: #0a0a18; */
   background-color: #0a0a28;
 }
 
@@ -167,6 +166,7 @@ code.scss .string-unquoted {
 
 code.css .selector-class,
 code.scss .selector-class {
+  color: #fc0;
   font-style: italic;
 }
 
