@@ -130,8 +130,30 @@ const VALUES = new Grammar({
     }
   },
 
+  'string string-percent-q string-percent-q-parens': {
+    pattern: /(%Q\()([\s\S]*)(\))/,
+
+    index: (text) => {
+      return balance(
+        text, ')', '(',
+        { startIndex: text.indexOf('(') }
+      );
+    },
+    wrapReplacement: true,
+    captures: {
+      '2': () => STRINGS
+    }
+  },
+
   'string string-percent-q string-percent-q-brackets': {
-    pattern: /(%Q\[)(.*?[^\\])(\])/,
+    pattern: /(%Q\[)([\s\S]*)(\])/,
+
+    index: (text) => {
+      return balance(
+        text, ']', '[',
+        { startIndex: text.indexOf('[') }
+      );
+    },
     wrapReplacement: true,
     captures: {
       '2': () => STRINGS
