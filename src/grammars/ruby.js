@@ -197,7 +197,7 @@ const VALUES = new Grammar({
   },
 
   keyword: {
-    pattern: /\b(do|class|def|if|module|yield|then|else|for|until|unless|while|elsif|case|when|break|retry|redo|rescue|require|lambda)\b/
+    pattern: /\b(begin|do|class|def|if|module|yield|then|else|for|until|unless|while|elsif|case|when|break|retry|redo|rescue|return|require|lambda)\b/
   }
 
 });
