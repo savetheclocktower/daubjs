@@ -47,7 +47,7 @@ const MAIN = new Grammar('shell', {
   },
 
   'support support-other': {
-    pattern: /\b(?:ruby|gem|rake|python|pip|easy_install|node|npm|php|perl|bash|sh|zsh|gcc|go|mate|subl|atom)\b/
+    pattern: /\b(?:ruby|gem|rake|python|pip|easy_install|node|npm|php|perl|bash|sh|zsh|gcc|go|mate|subl|atom)(?=\s)/
   },
 
   number: {
@@ -57,7 +57,7 @@ const MAIN = new Grammar('shell', {
   constant: {
     pattern: /\b(?:false|true)\b/
   },
-  
+
   'constant constant-home': {
     pattern: /(^|\s*|\n)~(?=\b|\/)/
   },
@@ -67,7 +67,7 @@ const MAIN = new Grammar('shell', {
   },
 
   operator: {
-    pattern: />|&gt;|&&|&amp;&amp;/
+    pattern: />|&gt;|&&|&amp;&amp;|&|&amp;/
   },
 
   variable: {
@@ -82,7 +82,7 @@ const MAIN = new Grammar('shell', {
   'variable variable-in-braces': {
     pattern: /\$\{.+?}(?=\n|\b)/
   }
-  
+
 }, { alias: ['bash'] });
 
 export default MAIN;
