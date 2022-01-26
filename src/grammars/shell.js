@@ -67,7 +67,7 @@ const MAIN = new Grammar('shell', {
   },
 
   operator: {
-    pattern: />|&gt;|&&|&amp;&amp;|&|&amp;/
+    pattern: />|&gt;|&amp;&amp;|&amp;|&&|&/
   },
 
   variable: {
