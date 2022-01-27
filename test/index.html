@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./theme.css"   type="text/css">
   <link rel="stylesheet" href="./support.css" type="text/css">
 
-  <script src="../dist/daub.js"></script>
+  <script src="../dist/daub.umd.js"></script>
   <script src="./support.js"></script>
 
 
@@ -39,7 +39,7 @@ function balance(source, token, paired, options = {}) {
   );
 
   let lastChar;
-  let { startIndex, stackDepth, considerEscapes } 
+  let { startIndex, stackDepth, considerEscapes }
     if (i > 0) { lastChar = source.slice(i - 1, i); }
     let escaped = considerEscapes ? (lastChar === '\\') : false;
     let candidate = source.slice(i, i + tl);
@@ -52,7 +52,7 @@ let escaped = considerEscapes ? (lastChar === '\\') : false;
 let escaped = considerEscapes ? (lastChar === '\\') : false;</code></pre>
 
 
-<pre id="scss" data-lines="1-3, 5, 14, 17-19"><code class="scss">
+<pre id="scss" data-lines="1-3, 5"><code class="scss">
 
 @import "post_types/article";
 @import "post_types/code";
@@ -66,7 +66,7 @@ let escaped = considerEscapes ? (lastChar === '\\') : false;</code></pre>
 
 </code></pre>
 
-<pre id="shell"><code class="shell">#!/usr/bin/bash
+<pre id="shell" data-lines="17"><code class="shell">#!/usr/bin/bash
 
 # ARGUMENTS, IN ORDER:
 # 1. System (e.g., "arcade")
@@ -77,10 +77,24 @@ if [ -z "$3" ]; then
   exit 0
 fi
 
+# function definition
+function _term {
+  pkill -P $$
+}
+
+trap _term SIGTERM
+
+/usr/bin/avahi-publish -a homebridge.home.local -R 192.168.1.99 &
+/usr/bin/avahi-publish -a node-red.home.local -R 192.168.1.99 &
+/usr/bin/avahi-publish -a zigbee2mqtt -R 192.168.1.99 &
+
+while true; do sleep 10000; done
+
 system=$1
 emulator=$2
 
 # Gets the basename of the game (e.g., "wjammers")
+game=`basename $3`
 game=$(basename $3)
 game=${game%.*}
 

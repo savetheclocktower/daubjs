@@ -1,4 +1,5 @@
-import { Grammar } from '../daub';
+import { Utils,Grammar } from '../daub';
+const { wrap, VerboseRegExp } = Utils;
 
 const INSIDE_STRINGS = new Grammar({
   variable: {
@@ -28,26 +29,50 @@ const MAIN = new Grammar('shell', {
     pattern: /(\w[\w\d_\-]+)(?=\()/
   },
 
+  'meta: function definition': {
+    pattern: VerboseRegExp`
+      \b(function)
+      (\s+) # leading space
+      ([a-zA-Z_$-]\w*) # function name
+      (\s*) # trailing space
+      (?={) # lookahead to open brace
+    `,
+    replacement: `<span class="keyword keyword-function">#{1}</span>#{2}<span class="entity">#{3}</span>#{4}`
+  },
+
   'shell-command shell-command-backticks': {
-    pattern: /`[^`]*`/,
+    pattern: /(`)([^`]*)(`)/,
+    replacement: `<span class="interpolation"><span class="punctuation">#{1}</span><span class="interpolation-contents">#{2}</span><span class="punctuation">#{3}</span></span>`,
     before: (r, context) => {
-      r[0] = INSIDE_SHELL_COMMANDS.parse(r[0], context);
+      r[2] = INSIDE_SHELL_COMMANDS.parse(r[2], context);
     }
   },
 
   'shell-command': {
-    pattern: /\$\(.*?\)/,
+    pattern: /(\$\()(.*?)(\))/,
+    replacement: `<span class="interpolation"><span class="punctuation">#{1}</span><span class="interpolation-contents">#{2}</span><span class="punctuation">#{3}</span></span>`,
     before: (r, context) => {
-      r[0] = INSIDE_SHELL_COMMANDS.parse(r[0], context);
+      r[2] = INSIDE_SHELL_COMMANDS.parse(r[2], context);
     }
   },
 
   'support support-builtin': {
-    pattern: /\b(?:sudo|chmod|cd|mkdir|ls|cat|echo|touch|mv|cp|rm|ln|sed|awk|tr|xargs|yes|pbcopy|pbpaste)\b/
+    pattern: /\b(?:sudo|chmod|cd|mkdir|ls|cat|echo|touch|mv|cp|rm|ln|sed|awk|tr|xargs|yes|pbcopy|pbpaste|trap)\b/
   },
 
   'support support-other': {
-    pattern: /\b(?:ruby|gem|rake|python|pip|easy_install|node|npm|php|perl|bash|sh|zsh|gcc|go|mate|subl|atom)(?=\s)/
+    pattern: /\b(?:ruby|gem|rake|python|pip|easy_install|node|npm|php|perl|bash|sh|zsh|gcc|go|mate|subl|atom|nano|pico)(?=\s)/
+  },
+
+  // Special-case IPs before we handle floats.
+  'meta: handle ip address': {
+    pattern: /\b([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\b/,
+    replacement: "#{1}.#{2}.#{3}.#{4}",
+    before: (r, context) => {
+      for (let i = 1; i <= 4; i++) {
+        r[i] = wrap(r[i], 'number');
+      }
+    }
   },
 
   number: {
@@ -55,7 +80,7 @@ const MAIN = new Grammar('shell', {
   },
 
   constant: {
-    pattern: /\b(?:false|true)\b/
+    pattern: /\b(?:false|true|SIGTERM|SIGINT|SIGKILL)\b/
   },
 
   'constant constant-home': {
@@ -72,6 +97,19 @@ const MAIN = new Grammar('shell', {
 
   variable: {
     pattern: /(\$[\w_\-]+)\b/
+  },
+
+  'meta: subshell with $() notation': {
+    pattern: VerboseRegExp`
+      \b
+      (\$\() # opening
+      (.*?)
+      (\)) # closing
+    `,
+    replacement: `<span class="interpolation"><span class="punctuation">#{1}</span><span class="interpolation-contents">#{2}</span><span class="punctuation">#{3}</span></span>`,
+    before: (r, context) => {
+      r[2] = MAIN.parse(r[2], context);
+    }
   },
 
   'variable-assignment': {
