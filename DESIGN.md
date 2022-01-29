@@ -11,6 +11,8 @@ Honestly, I’m not sure. Most people seem content to have their strings and key
 
 I also just wanted to see if I could do it. Fluorescence predated Prism; I was curious to see how it would be different if it were written from the ground up in the ES6 era.
 
+Also, I needed a lockdown project.
+
 ## Core approach
 
 Daub is a specialized find-and-replace engine. At its simplest, it merely transforms (e.g.) `true` into `<span class="boolean">true</span>`. To make this happen, you find the grammar you need — an instance of `Grammar` with rules that suit the language in question — and you call `someGrammar.parse(text)`.
@@ -79,20 +81,27 @@ What’s a “rule literal”? You don’t instantiate a `Rule` directly; this i
   // Will be used to build a `Template`. Default value varies based
   // on other properties.
   replacement: String,
-  // If present, will be used to decide how much of the match should be
-  // consumed.
+
+  // If present, will be used after a match to decide how much of the match
+  // should be consumed.
   index: Function,
-  // If present, will be called before replacement with the match data and a
-  // `Context` instance. Can mutate the match data or substitute it with a new array.
+
+  // If present, will be called before replacement (but after `captures`).
+  // Called with two arguments: (1) the match data (in the form returned by
+  // String#match) and (2) a `Context` instance. Can mutate the match data in
+  // place or substitute it with a new array.
   before: Function,
-  // If present, will be called after replacement. Called with the transformed
-  // text and a `Context` instance. Can substitute the transformed text with a
-  // different string.
+
+  // If present, will be called after replacement. Called with two arguments:
+  // (1) the transformed text in flat string form and (2) a `Context` instance.
+  // Can substitute the transformed text with a different string.
   after: Function,
+
   // An object whose keys are integers and whose values are strings or
   // instances of `Grammar`. If present, will perform substitutions on capture
   // groups right before the `before` callback is invoked.
   captures: Object,
+
   // Whether the replacement template should wrap the entire match in "<span
   // class=#{name}>"/"</span>". Ignored unless `captures` is present; defaults
   // to `false`. Further explanation below.
@@ -179,23 +188,23 @@ In TextMate grammars, it’s easy to define a pattern like this:
 
 ```
 {
-  name = 'comment.block.html.js';
-  match = '(module)\s*(A-Za-z_\w*)';
+  name = 'meta.module-definition.ruby';
+  match = '(module)\s+(A-Za-z_\w*)';
   captures = {
-    1 = { name = 'keyword.controle.module.ruby'; };
+    1 = { name = 'keyword.control.module.ruby'; };
     2 = { name = 'entity.name.type.module.ruby'; };
   };
 },
 ```
 
-So `module` gets annotated with a scope, as does the name of the module, while the space in between is left intact. For this to be possible in JavaScript _in the general case_, `RegExp#exec` (or `String#match`) would need to report the index not just for the match itself but _also_ for each of its capture groups. XRegExp’s maintainer [explains it better](https://github.com/slevithan/xregexp/issues/217#issuecomment-361022813) than I do.
+So `module` gets annotated with a scope, as does the name of the module, while the one-or-more spaces in between are left intact. For this to be possible in JavaScript _in the general case_, `RegExp#exec` (or `String#match`) would need to report the index not just for the match itself but _also_ for each of its capture groups. XRegExp’s maintainer [explains it better](https://github.com/slevithan/xregexp/issues/217#issuecomment-361022813) than I do.
 
 #### Workaround
 
-If we want to capture _any_ chunks of the string for transformation, we must ensure that the rule’s pattern is written such that every token that we want in the output is captured in one group or another. So the pattern above becomes:
+If we want to capture _any_ chunks of the string for transformation, we must ensure that the rule’s pattern is written such that _every_ token that we want in the output is captured in one group or another. So the pattern above becomes:
 
 ```javascript
-/(module)(\s*)(A-Za-z_\w*)/
+/(module)(\s+)(A-Za-z_\w*)/
 ```
 
 Then, instead of using `#{0}` in the replacement, we concatenate the individual capture groups: `#{1}#{2}#{3}`.
@@ -212,7 +221,7 @@ But since each rule’s pattern is joined with other patterns into one grotesque
 
 Yeah, I wrote code to count and renumber backreferences in an arbitrary regular expression. It didn’t feel great while I was doing it, but it felt great when I saw that it worked and I didn’t have to think about it anymore.
 
-## Creative solutions
+## Other creative solutions
 
 There aren’t a lot of advantages we have, but one of them is that Daub grammars can incorporate arbitrary code. We can start out with something that generally feels like a TextMate grammar and then bring in arbitrary code where we need help.
 
@@ -298,7 +307,7 @@ The `captures` property lets us do two things with tokens:
 1. We can give a string value to represent the class names of a `span` which will wrap the token.
 2. We can give a reference to a different grammar to specify that the text in this capture group should be _parsed again_ using that grammar.
 
-In the second form, the value can be either an instance of `Grammar` _or_ a function that _returns_ an instance of grammar. This is necessary for the interpolation rule because `JS_MAIN` hasn't been defined yet; referencing it while it's in the **TEMPORAL DEAD ZONE** will trigger an error. But it’s not necessary when the main grammar references `JS_INSIDE_TEMPLATE_STRINGS` because that variable has already been defined.
+In the second form, the value can be either an instance of `Grammar` _or_ a function that _returns_ an instance of `Grammar`. This is necessary for the interpolation rule because `JS_MAIN` hasn't been defined yet; referencing it while it's in the **TEMPORAL DEAD ZONE** will trigger an error. But it’s not necessary when the main grammar references `JS_INSIDE_TEMPLATE_STRINGS` because that variable has already been defined.
 
 ## Other half-baked ideas
 

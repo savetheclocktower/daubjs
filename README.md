@@ -99,9 +99,9 @@ Here's what we just did:
 
 ## Capture groups
 
-Daub aims to support tokenization of capture groups just like the syntax highlighting approaches taken by, say, TextMate or Atom. But those IDEs use the [Oniguruma][] regular expression engine, and I’m using JavaScript’s built-in engine. I can execute a pattern against a string, but the resulting match object will tell me about any capture group matches, but it won’t tell me _where_ they are in the string.
+Daub aims to support tokenization of capture groups just like the syntax highlighting approaches taken by, say, TextMate or Atom. But those IDEs use the [Oniguruma][] regular expression engine, and I’m using JavaScript’s built-in engine. I can execute a pattern against a string, and the resulting match object will tell me about any capture group matches, but it won’t tell me _where_ they are in the string.
 
-The way around this, as annoying as it is, is to ensure that every part of the pattern is captured in its own group. You can see how this works in the `module` example above.
+The way around this, as annoying as it is, is to ensure that _every part of the pattern_ is captured in its own group. You can see how this works in the `module` example above.
 
 ## The `captures` shorthand
 
@@ -135,10 +135,10 @@ The `captures` property, if it exists, will be used by Daub to decide how to tra
 
 Here’s how Daub decides which kind of replacement to use for a pattern:
 
-1. Have you defined a custom `replacement` property? That’s what Daub will use.
-2. If not, have you defined a `captures` property? Daub will infer that you want to use capture groups, and will default to a simple replacement with the exact number of capture groups that your pattern uses. If your pattern uses four capture groups, Daub will default to a replacement of `#{1}#{2}#{3}#{4}`.
-3. The above strategy is usually the best for captures. But if you have defined a `wrapReplacement` property with a value of `true`, Daub will also wrap the entire match in a container — e.g., `<span class="#{name}">#{1}#{2}#{3}#{4}</span>`.
-4. If none of the above is true, Daub will use the default replacement — `<span class="#{name}">#{0}</span>` — where `#{0}` is the entire text of the match, ignoring capture groups.
+1. Is this a simple rule with only a `pattern` property and nothing else? Daub will use the default replacement — `<span class="#{name}">#{0}</span>` — where `#{0}` is the entire text of the match, ignoring capture groups.
+2. If not, have you defined a custom `replacement` property? That’s what Daub will use.
+3. If not, have you defined a `captures` property? Daub will infer that you want to use capture groups, and will default to a simple replacement with the exact number of capture groups that your pattern uses. If your pattern uses four capture groups, Daub will default to a replacement of `#{1}#{2}#{3}#{4}`. It _will not_ wrap the output in a `span` with a class name corresponding to the name of the rule, since that’s usually not what complex rules want.
+4. But if you have _also_ defined a `wrapReplacement` property with a value of `true`, Daub _will_ wrap the entire match in a container — e.g., `<span class="#{name}">#{1}#{2}#{3}#{4}</span>`, to continue the example above.
 
 ### Write some CSS for the syntax
 
@@ -222,7 +222,7 @@ JavaScript regular expressions aren't quite robust enough on their own to parse 
 
 The `before` callback lets you modify the contents of the replacement array before a rule generates its replacement string. Your callback should _either_ mutate the provided array directly and return nothing _or_ create and return a whole new array. Any value returned from the `before` callback will be assumed to be the new replacement array.
 
-This is how we’ll “pre-parse” certain captures with sub-grammars.
+We could therefore “pre-parse” certain captures with sub-grammars like this…
 
 ```javascript
 import { Grammar } from 'daub';
@@ -247,7 +247,7 @@ let MAIN = new Grammar('javascript', {
 });
 ```
 
-Easy enough, but this cries out for a shorthand.
+…but this cries out for a shorthand:
 
 ```javascript
 let MAIN = new Grammar('javascript', {
@@ -262,6 +262,8 @@ let MAIN = new Grammar('javascript', {
 ```
 
 Yeah, the same `captures` shorthand we used earlier. When a capture group refers to a string, it’s specifying class names to wrap around the string. But when it refers to an instance of `Grammar`, Daub will understand that you want that match to be parsed with that grammar, and for the result to replace the original match.
+
+(You can combine `captures` with `before`; just be aware that `captures` runs first, and will already have transformed some of the matches when the `before` callback runs.)
 
 This next example is more elaborate: it allows us to highlight the default values in function parameters.
 
@@ -359,9 +361,7 @@ export default RUBY;
 
 This is a contrived example, but you get the point. We don’t always need to write a grammar; sometimes the transformations are straightforward enough that they can be done with more conventional string manipulation techniques.
 
-This approach also gives you the flexibility to write rules more generically. For example, in JavaScript, instead of having one rule for named function expressions (`function foo () {}`) and one for anonymous function expressions (`function () {}`), you can define a pattern with an optional capture group and then use a `before` callback to highlight the function name only if it's present.
-
-The `after` callback is illustrated in the above example. It's a chance to modify the text after replacement. You can also use it simply as a hook point for keeping track of state. If it does return something, Daub will use that as the replacement for the pattern matched in the raw source text.
+The `after` callback is illustrated in the above example. It's a chance to modify the text after replacement. You can also use it along with the `context` argument simply as a hook point for keeping track of state. If it does return something, Daub will use that as the replacement for the pattern matched in the raw source text.
 
 #### The ‘index’ callback
 
@@ -379,12 +379,12 @@ Ruby's `%Q` literal syntax lets you declare a multi-line string. The literal its
 
 Ruby knows not to end the literal until the braces are balanced. But with a regex, you're stuck. A greedy capture group will match too much, but a non-greedy capture group will match too little.
 
-The way Daub gets around this is to allow a rule to specify a callback called `index`. When called, the callback can use whatever logic it likes to find the actual portion of that string that it can match, and should return the index of the last character in that substring.
+The way Daub gets around this is to allow a rule to specify a `pattern` with a greedy capture group, plus a callback called `index`. When called, the callback can use whatever logic it likes to find the actual portion of that string that it can match, and should return the index of the last character in that substring. Daub will then proceed as though only that smaller section of the string was actually consumed.
 
 In other words, we can write a pattern that asks for much more of the text than we probably need, then use approaches other than regular expressions to find out how much of the text we _actually_ need.
 
 ```javascript
-function balance (string, token, paired, startIndex) => {
+function balance (string, token, paired, startIndex) {
   // A hypothetical function that searches through a string manually, keeping
   // track of balance, until it finds the first balanced occurrence of
   // `token`; it then returns the index of that character. (The `utils`
@@ -408,8 +408,8 @@ const RUBY = new Grammar({
     // When we receive matches here, they won't be against the entire string
     // that the pattern originally matched; they'll be against the segment of
     // the string that we later decided we cared about.
-    before: (r, context) => {
-      r[2] = STRINGS.parse(r[2], context);
+    captures: {
+      '2': STRINGS
     }
   },
 
@@ -420,8 +420,47 @@ const RUBY = new Grammar({
 To summarize:
 
 * If you return a number X from the `index` callback, the rule will re-match against only the first X characters of the string before proceeding. The part of the string you didn't want will remain unparsed.
-* If you don't return anything from the callback, or return a negative number, the return value will be ignored. This allows you to, e.g., return the result of a `String#indexOf` call without guarding against `-1` first.
+* If you don't return anything from the callback, or return a negative number, the return value will be ignored, and Daub will take that to mean that the full match should be consumed after all. This allows you to, e.g., return the result of a `String#indexOf` call without guarding against `-1` first.
 * The index you return _must_ result in a substring that will still get matched by the operative rule. If the substring matches a different rule in the grammar, or no rule at all, an error will be thrown.
+
+### Deferred loading of values in `captures`
+
+It’s great to be able to define a grammar that delegates some captures to other grammars — except for how it constrains the _order_ in which you define your grammars. Recalling our earlier example…
+
+```javascript
+let MAIN = new Grammar('javascript', {
+  'string string-single': {
+    pattern: (/(')(.*?[^\\])(')/),
+    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
+    captures: {
+      '2': ESCAPES
+    }
+  }
+});
+```
+
+…you might notice that this requires `ESCAPES` to be defined _earlier_ in the file. If it were defined later in the file, Daub would see `captures: { '2': undefined }` instead, and wouldn’t know what to do.
+
+In simple cases like this, it’s easy enough to define your sub-grammars first. In more complex cases, various sub-grammars might depend on each other in a way that’s harder to untangle. For those cases, you can pass a function instead:
+
+```javascript
+let MAIN = new Grammar('javascript', {
+  'string string-single': {
+    pattern: (/(')(.*?[^\\])(')/),
+    replacement: "<span class='#{name}'>#{1}#{2}#{3}</span>",
+    captures: {
+      '2': () => ESCAPES
+    }
+  }
+});
+```
+
+If a property value inside `captures` is a function, Daub will wait until parse time to evaluate that function and figure out what it returns. In this example, we’re now free to define `ESCAPES` _anywhere_ in the file.
+
+This would also allow you to re-parse a capture group with _the very grammar you’re currently defining_, which could be useful in certain cases.
+
+(In theory, you could also abuse this feature to construct on-the-fly grammars. This would be silly; please don’t do it.)
+
 
 ### The ‘context’ object
 
@@ -429,7 +468,7 @@ When a `Highlighter` class starts highlighting a specific element, it creates a 
 
 You can use it two ways.
 
-First: you can use a context's `highlighter` property to get a reference to the owning `Highlighter` instance. This lets you invoke a different named grammar by name. For instance:
+First: you can use a context's `highlighter` property to get a reference to the owning `Highlighter` instance, if one exists. This lets you invoke a different named grammar by name. For instance:
 
 ```javascript
 const HTML = new Grammar({
@@ -441,13 +480,15 @@ const HTML = new Grammar({
       if (r[3]) {
         r[3] = ATTRIBUTES.parse(r[3], context);
       }
-      r[5] = context.highlighter.parse(r[5], 'javascript', context);
+      if (context.highlighter) {
+        r[5] = context.highlighter.parse(r[5], 'javascript', context);
+      }
     }
   }
 });
 ```
 
-In this example, if the highlighter knows about a grammar named `javascript` — i.e., if one was supplied via `addGrammar` — it'll highlight the contents using that grammar. If not, it'll silently return the text it was given.
+In this example, if the highlighter exists and knows about a grammar named `javascript` — i.e., if one was supplied via `addGrammar` — it'll highlight the contents using that grammar. If not, it'll silently return the text it was given.
 
 Second: you can share state across rules by using the context as a hash. The `Context#set` and `Context#get` methods work almost exactly like those on an ES6 [Map] object, except that `get` takes a second argument for a fallback value.
 
@@ -470,9 +511,9 @@ const RUBY = new Grammar('ruby', {
     }
   },
 
-  // (other rules that consume opening braces)
+  // (other rules that consume opening braces, then…)
 
-  'meta: close bracket': {
+  'meta: close brace': {
     pattern: /\}/,
     replacement: "#{0}",
     after: (text, context) => {
@@ -487,9 +528,9 @@ const RUBY = new Grammar('ruby', {
 
 In this approach, we match an opening brace that is followed by block parameters, but we don't try to match the closing brace. We simply push a scope onto the shared braces stack to serve as a marker for the closing brace we're expecting later. In this grammar, any other rules that deal with braces should _either_ (a) consume both the opening brace and the closing brace _or_ (b) match _only_ the opening brace and use a callback to add its scope to the stack.
 
-The `meta: close bracket` rule, then, ends up acting as a catch-all that can close the blocks that other rules opened. (Note how we use a `b` element for groups instead of `span`: `b` is also nonsemantic, and we can style it as `font-weight: normal` in the theme.)
+The `meta: close bracket` rule, then, ends up acting as a catch-all that can close the blocks that other rules opened. It will match whenever we encounter a closing brace that hasn't already been matched by a more specific rule. In that case, we pop the last item off of the shared braces stack to figure out how we should highlight the closing brace.
 
-It will match whenever we encounter a closing brace that hasn't already been matched by a more specific rule. In that case, we pop the last item off of the shared braces stack to figure out how we should highlight the closing brace.
+(Note how we use a `b` element for groups instead of `span`: `b` is also nonsemantic, and we can style it as `font-weight: normal` in the theme. Using a different tag for the groups should result in much less confusion when you’re looking at the grammar a year afterward — you won’t wonder “…why does this rule close more `spans` than it opened?”)
 
 Contexts are not shared across elements. A new context is created whenever Daub begins highlighting a particular element with a particular language — or you can pass an existing context as the second argument to `Grammar#parse` (or the third argument to `Highlighter#parse`). You should do this if you use sub-grammars for contextual parsing, so that the sub-grammars can share state with the parent grammar.
 
@@ -518,7 +559,7 @@ Finally, Daub defines a `Utils` module with a few helper functions. Most users w
 
 #### balance(source, token, paired[, options])
 
-Given text `source`, will search for a “balanced” occurrence of `token`. If it encounters the `paired` token, it will increase its “stack” size by 1, and if it encounters `token` while its stack size is greater than `0`, it will decrement the stack and keep searching. Both `token` and `paired` can be of arbitrary length.
+Given text `source`, will search for a “balanced” occurrence of `token`. If it encounters the `paired` token (e.g., an opening brace), it will increase its “stack” size by 1. If it encounters `token` (e.g., a closing brace) while its stack size is greater than `0`, it will decrement the stack and keep searching. If it encounters `token` while its stack size is equal to `0`, it will declare victory and return the index of the start of that token. Both `token` and `paired` can be of arbitrary length.
 
 As the name implies, this is useful for balancing paired characters like braces and parentheses. Use it in your `index` callbacks.
 
@@ -529,22 +570,39 @@ The options:
 
 #### compact(string)
 
-Given a multiline string, removes all newlines, along with all space at the beginnings of lines. Lets us define replacement strings with indentation, yet have all that extraneous space stripped out before it gets into the replacement.
+Given a multiline string, removes all newlines, along with all space at the _beginnings_ of lines. Lets us use indentation and multiple lines to craft more readable `replacement` strings, yet have all that extraneous space stripped out before it gets into the replacement.
+
+```javascript
+import { Utils } from 'daub';
+
+Utils.compact(`
+  <span class="string string-quoted">
+    <span class="punctuation">#{1}</span>
+    #{2}
+    <span class="punctuation">#{3}</span>
+  </span>
+`);
+
+//-> "<span class="string string-quoted"><span class="punctuation">#{1}</span>#{2}<span class="punctuation">#{3}</span></span>"
+```
 
 #### wrap(string, className)
 
-Shorthand:
+Same shorthand used internally by `captures`. Wraps `string`, if present, with a `span` whose `class` attribute is equal to `className`. If `string` is falsy — empty string, `null`, `undefined` — `wrap` will return an empty string.
 
 ```javascript
-wrap('foo', 'bar');
+import { Utils } from 'daub';
+Utils.wrap('foo', 'bar');
 //-> <span class='bar'>foo</span>
+Utils.wrap(null, 'bar');
+//-> ""
 ```
 
 #### VerboseRegExp
 
 Verbose regular expressions are _great_ in languages that support them. They make complex patterns _much_ more readable. But JavaScript doesn't support them out of the box.
 
-So Daub also exports a utility function called `VerboseRegExp`. It's a [tagged template literal][] that allows you to define a verbose regular expression using backticks. Literal whitespace has no meaning, and you can use `#` to mark comments at the ends of lines. This makes long regular expressions way easier to grok.
+So Daub also exports a utility function called `VerboseRegExp`. It's a [tagged template literal][] that allows you to define a verbose regular expression using backticks. Literal whitespace has no meaning (use `\s` instead), and you can use `#` to mark comments at the ends of lines. This makes long regular expressions way easier to grok.
 
 ```javascript
 import { VerboseRegExp } from 'daub';
@@ -558,9 +616,11 @@ let pattern = VerboseRegExp`
 `;
 ```
 
-`VerboseRegExp` works like `[String.raw][]` — it acts on the raw string literal before escape sequences are interpreted. So you can write (e.g.) `\n` instead of `\\n` (just like you would in a regex literal) without it turning into a literal newline.
+`VerboseRegExp` works like `[String.raw][]` — it acts on the raw string literal before escape sequences are interpreted. So no “double-escaping” is necesssary; for example ,you can write `\n` instead of `\\n` (just like you would in a regex literal) without it turning into a literal newline.
 
 (Sadly, this doesn't work for backreferences to capture groups; `\1` needs to be written as `\\1`. This is because of a [spec oversight](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#Tagged_template_literals_and_escape_sequences) that will eventually be corrected in the language.)
+
+To match a literal `#` character in the regex, use `\#`.
 
 ## Events
 
@@ -605,7 +665,7 @@ It also means that **you shouldn't put flags on your regular expressions**. If y
 
 This further means that **case insensitivity is all-or-nothing within a language**. In some languages, like HTML, this is probably what you want. In more complicated stuff like JavaScript, total case insensitivity won't work at all. If an individual rule needs to be case-insensitive, you'll have to get creative in how you write its regular expression.
 
-Finally, **be aware of HTML entities**. Depending on what language you're parsing and how your CMS works, some characters might be HTML-encoded before they get parsed. Any code block containing sample HTML will, for obvious reasons, already be encoded in an HTML context. The safest approach is to write your patterns in a way that can accept (e.g.) either `<` _or_ `&lt;`.
+Finally, **be aware of HTML entities**. Depending on what language you're parsing and how your CMS works, some characters might be HTML-encoded before they get parsed. Any code block containing sample HTML will, for obvious reasons, already be encoded in an HTML context, and languages that use greater-than/less-than symbols and/or ampersands (i.e., most of them) are likely to encounter encoded versions of those symbols. The safest approach is to write your patterns in a way that can accept (e.g.) either `<` _or_ `&lt;`.
 
 
 [Fluorescence]: https://github.com/savetheclocktower/fluorescence/
