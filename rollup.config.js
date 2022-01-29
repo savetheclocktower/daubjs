@@ -1,9 +1,14 @@
 /* global process */
 /* eslint-disable no-console */
-import resolve from 'rollup-plugin-node-resolve';
-import cjs from 'rollup-plugin-commonjs';
-import babel from 'rollup-plugin-babel';
-import strip from 'rollup-plugin-strip';
+// import resolve from 'rollup-plugin-node-resolve';
+// import cjs from 'rollup-plugin-commonjs';
+// import babel from 'rollup-plugin-babel';
+// import strip from 'rollup-plugin-strip';
+
+import resolve from '@rollup/plugin-node-resolve';
+import cjs from '@rollup/plugin-commonjs';
+import babel from '@rollup/plugin-babel';
+import strip from '@rollup/plugin-strip';
 
 import { terser } from 'rollup-plugin-terser';
 
