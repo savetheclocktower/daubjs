@@ -1,9 +1,5 @@
 /* global process */
 /* eslint-disable no-console */
-// import resolve from 'rollup-plugin-node-resolve';
-// import cjs from 'rollup-plugin-commonjs';
-// import babel from 'rollup-plugin-babel';
-// import strip from 'rollup-plugin-strip';
 
 import resolve from '@rollup/plugin-node-resolve';
 import cjs from '@rollup/plugin-commonjs';
@@ -55,6 +51,9 @@ export default [
       resolve(),
       cjs(),
       babel({
+        // The docs say to use 'runtime' here, that it removes duplication, but
+        // it caused a bunch of headaches and still made my files larger.
+        babelHelpers: 'bundled',
         // Only transpile our source code.
         exclude: 'node_modules/**',
       }),
@@ -74,6 +73,9 @@ export default [
       resolve(),
       cjs(),
       babel({
+        // The docs say to use 'runtime' here, that it removes duplication, but
+        // it caused a bunch of headaches and still made my files larger.
+        babelHelpers: 'bundled',
         // Only transpile our source code.
         exclude: 'node_modules/**',
       }),
@@ -91,6 +93,9 @@ export default [
       resolve(),
       cjs(),
       babel({
+        // The docs say to use 'runtime' here, that it removes duplication, but
+        // it caused a bunch of headaches and still made my files larger.
+        babelHelpers: 'bundled',
         // Only transpile our source code.
         exclude: 'node_modules/**',
       }),

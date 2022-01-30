@@ -37,8 +37,8 @@ function VerboseRegExp (str) {
     .join('')
     .replace(/\s/g, '');
 
-  // Take (e.g.) `\\5` and turn it into `\5`. For some reason we can't do
-  // this with raw strings.
+  // Take (e.g.) `\\5` and turn it into `\5`. Because of a spec bug, we can't
+  // do this with raw strings.
   pattern = pattern.replace(/(\\)(\\)(\d+)/g, (m, _, bs, d) => {
     return `${bs}${d}`;
   });
