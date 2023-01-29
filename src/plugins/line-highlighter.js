@@ -25,6 +25,10 @@
 //   values in `data-lines` refer to the line numbers _after_ normalization, not
 //   before.
 //
+//
+// This plugin is adapted from the excellent (MIT-licensed) Prism plugin:
+// https://github.com/PrismJS/prism/blob/master/plugins/line-highlight/
+//
 function getLineHeight (el) {
   let style = getComputedStyle(el);
   return parseFloat(style.lineHeight);

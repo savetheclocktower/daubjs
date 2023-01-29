@@ -35,6 +35,7 @@ const FUNCTIONS = new Grammar({
   'support support-function-call support-function-call-url': {
     pattern: /(url)(\()(.*)(\))/,
     index: (match) => {
+      console.log('wtf');
       return balance(
         match, ')', '(',
         { startIndex: match.indexOf('(') }

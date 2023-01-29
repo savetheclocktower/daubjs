@@ -4,7 +4,10 @@ import Lexer from '../lexer';
 const {
   balance,
   balanceByLexer,
+  balanceAndHighlightByLexer,
+  serializeLexerFragment,
   compact,
+  renderTree,
   wrap,
   VerboseRegExp
 } = Utils;
@@ -33,7 +36,7 @@ const LEXER_STRING = new Lexer([
     },
     final: true
   }
-], 'string');
+], 'string', { scopes: 'string' });
 
 // After seeing `{`, consumes until it sees `}`. Goes one level deeper for each
 // `{` it sees.
@@ -59,7 +62,7 @@ const LEXER_TEMPLATE_STRING_INTERPOLATION = new Lexer([
     raw: true
   },
   {
-    name: 'interpolation-end',
+    name: 'punctuation interpolation-end',
     pattern: /\}/,
     final: true
   }
@@ -91,7 +94,7 @@ const LEXER_TEMPLATE_STRING = new Lexer([
 // brace.
 const LEXER_JSX_INTERPOLATION = new Lexer([
   {
-    name: 'punctuation',
+    name: 'punctuation interpolation-begin',
     pattern: /\{/,
     inside: { lexer: LEXER_BALANCE_BRACES }
   },
@@ -102,6 +105,7 @@ const LEXER_JSX_INTERPOLATION = new Lexer([
   },
   {
     name: 'string-begin',
+    // classNames: 'string string-quoted',
     pattern: /^\s*('|")/,
     test: (match, text, context) => {
       context.set('string-begin', match[1]);
@@ -121,17 +125,25 @@ const LEXER_JSX_INTERPOLATION = new Lexer([
     }
   },
   {
-    name: 'interpolation-end',
+    name: 'punctuation interpolation-end',
     pattern: /\}/,
     final: true
   }
-], 'jsx-interpolation');
+], 'jsx-interpolation', {
+  highlight: (tokens, context) => {
+    let last = tokens.pop();
+    let serialized = serializeLexerFragment(tokens);
+    let highlighted = MAIN.parse(serialized, context);
+    return [highlighted, last];
+  },
+  scopes: 'embedded jsx-interpolation'
+});
 
 // Expects to be deployed immediately before a JSX interpolation. Consumes
 // until the end of the interpolation.
 const LEXER_BEFORE_JSX_INTERPOLATION = new Lexer([
   {
-    name: 'interpolation-begin',
+    name: 'punctuation interpolation-begin',
     pattern: /^\{/,
     inside: {
       name: 'interpolation',
@@ -144,7 +156,7 @@ const LEXER_BEFORE_JSX_INTERPOLATION = new Lexer([
 // until the value ends.
 const LEXER_ATTRIBUTE_VALUE = new Lexer([
   {
-    name: 'interpolation-begin',
+    name: 'punctuation interpolation-begin',
     pattern: /^\{/,
     inside: {
       name: 'interpolation',
@@ -182,11 +194,13 @@ const LEXER_ATTRIBUTE_SEPARATOR = new Lexer([
 // After seeing `</` in a JSX context, consumes until the end of the tag.
 const LEXER_JSX_CLOSING_TAG = new Lexer([
   {
-    name: 'tag tag-html',
+    name: 'tag HTML',
+    scopes: 'tag tag-html',
     pattern: /^[a-z]+(?=&gt;|>)/
   },
   {
-    name: 'tag tag-jsx',
+    name: 'tag JSX',
+    scopes: 'tag tag-jsx',
     pattern: /^[A-Z][A-Za-z0-9_$\.]*(?=&gt;|>)/
   },
   {
@@ -199,20 +213,22 @@ const LEXER_JSX_CLOSING_TAG = new Lexer([
       context.set('jsx-tag-depth', depth);
       return match;
     },
+    trim: true,
     final: true
   }
-], 'jsx-closing-tag');
+], 'jsx-closing-tag', { scopes: 'jsx-element element element-closing' });
 
 // Consumes the inside of a JSX opening (or self-closing) tag, where "inside"
 // means the part after the name and before the closing `>`.
 const LEXER_INSIDE_TAG = new Lexer([
   {
-    name: 'punctuation',
+    name: 'punctuation interpolation-begin',
     pattern: /^\s*\{/,
     inside: {
       name: 'interpolation',
       lexer: LEXER_JSX_INTERPOLATION
-    }
+    },
+    trim: true
   },
   {
     name: 'attribute-name',
@@ -220,17 +236,19 @@ const LEXER_INSIDE_TAG = new Lexer([
     after: {
       name: 'attribute-separator',
       lexer: LEXER_ATTRIBUTE_SEPARATOR
-    }
+    },
+    trim: true
   },
   {
     // The end of a self-closing tag.
-    name: 'punctuation',
+    name: 'punctuation punctuation-self-closing',
     pattern: /^\s*\/(?:>|&gt;)/,
     test: (match, text, context) => {
       context.set('is-opening-tag', null);
       // Don't increment the tag depth.
       return match;
     },
+    trim: true,
     final: (context) => context.get('is-root')
   },
   {
@@ -246,11 +264,11 @@ const LEXER_INSIDE_TAG = new Lexer([
       // one JSX tag, because in those cases we're still in JSX mode. So return
       // false if the new depth is now zero. The next rule will catch this.
       if (depth === 0) { return false; }
-      // console.warn(`[depth] Depth is now`, depth);
       context.set('jsx-tag-depth', depth);
       context.set('is-opening-tag', null);
       return match;
     },
+    trim: true,
     final: (context) => {
       let depth = context.get('jsx-tag-depth');
       return context.get('only-opening-tag') || depth === 0;
@@ -270,6 +288,7 @@ const LEXER_WITHIN_TAG = new Lexer([
     // Beginning of an opening (or self-closing) JSX tag.
     name: 'punctuation',
     pattern: /^\s*(?:<|&lt;)(?!\/)/,
+    trim: true,
     after: {
       name: 'tag',
       lexer: () => LEXER_TAG_NAME
@@ -285,7 +304,7 @@ const LEXER_WITHIN_TAG = new Lexer([
     final: true
   },
   {
-    name: 'punctuation',
+    name: 'punctuation interpolation-begin',
     pattern: /\{/,
     inside: {
       name: 'interpolation',
@@ -309,6 +328,7 @@ const LEXER_TAG_NAME = new Lexer([
       }
       return match;
     },
+    trim: true,
     after: {
       name: 'jsx-tag-contents',
       lexer: LEXER_INSIDE_TAG
@@ -345,9 +365,11 @@ const LEXER_TAG_OPEN_START = new Lexer([
       context.set('only-opening-tag', true);
       return match;
     },
+    trim: true,
     after: {
       name: 'tag',
-      lexer: LEXER_TAG_NAME
+      lexer: LEXER_TAG_NAME,
+      silent: true
     },
     final: true
   }
@@ -364,12 +386,18 @@ const LEXER_TAG_ROOT = new Lexer([
       context.set('is-root', true);
       return match;
     },
+    trim: true,
     after: {
       name: 'tag',
-      lexer: LEXER_TAG_NAME
+      lexer: LEXER_TAG_NAME,
+      silent: true
     }
   }
-], 'tag-root');
+], 'tag-root', { scopes: 'jsx-element element element-opening' });
+
+
+// GRAMMARS
+// ========
 
 let ESCAPES = new Grammar({
   escape: { pattern: /\\./ }
@@ -411,7 +439,7 @@ const PARAMETERS = new Grammar({
     pattern: /([A-Za-z$_][$_A-Za-z0-9_]*)(\s*=\s*)(.*?)(?=,|\)|\n|$)/,
     captures: {
       '1': 'variable parameter',
-      '2': 'operator',
+      '2': 'ror',
       '3': () => VALUES
     }
   },
@@ -469,7 +497,7 @@ let JSX_INTERPOLATION = new Grammar({
     },
     captures: {
       '1': 'punctuation embedded-start',
-      '2': () => JSX_EXPRESSIONS,
+      '2': () => MAIN,
       '3': 'punctuation embedded-end'
     },
     wrapReplacement: true
@@ -512,14 +540,18 @@ let JSX_TAG_ROOT = new Grammar({
       ([\s\S]*) # middle-of-tag content (will be parsed later)
       (&gt;|>)
     `,
-    index: (text) => {
-      return balanceByLexer(text, LEXER_TAG_ROOT);
+    index: (text, context) => {
+      let index = balanceByLexer(text, LEXER_TAG_ROOT, context);
+      // let { index, highlighted } = balanceAndHighlightByLexer(text, LEXER_TAG_ROOT, context);
+      // context.set('lexer-highlighted', highlighted);
+      return index;
     },
-    replacement: compact(`
-      <span class='jsx'>#{0}</span>
-    `),
-    before: (m) => {
-      m[0] = JSX_CONTENTS.parse(m[0]);
+    captures: {
+      '0': () => JSX_CONTENTS
+    },
+    replacement: `<span class='jsx'>#{0}</span>`,
+    after (text, context) {
+      return context.get('lexer-highlighted') || text;
     }
   }
 });
@@ -613,9 +645,9 @@ let ARROW_FUNCTION_PARAMETERS = new Grammar({
   // function as a default value inside a parameter. Not sure I care.
   'params': {
     pattern: VerboseRegExp`
-      (\()   # 1: opening paren
+      (\()    # 1: opening paren
       ([^)]+) # 2: contents of params
-      (\))   # 3: closing paren
+      (\))    # 3: closing paren
     `,
     wrapReplacement: true,
     captures: {
@@ -633,8 +665,8 @@ let ARROW_FUNCTIONS = new Grammar({
   'meta: single-parameter multiline arrow function': {
     pattern: VerboseRegExp`
       ([\w$][\w\d$]*) # any single identifier
-      (\s*) # optional space
-      (=(?:>|&gt;)) # arrow function operator!
+      (\s*)           # optional space
+      (=(?:>|&gt;))   # arrow function operator!
     `,
     captures: {
       '1': ARROW_FUNCTION_PARAMETERS,
@@ -644,11 +676,11 @@ let ARROW_FUNCTIONS = new Grammar({
   'meta: arrow function with params in parentheses': {
     pattern: VerboseRegExp`
       (       # 1:
-        \(   # optional opening paren
+        \(    # optional opening paren
         [^)]+ # contents of params
-        \)   # optional closing paren
+        \)    # optional closing paren
       )
-      (\s*)   # 2: optional space
+      (\s*)         # 2: optional space
       (=(?:>|&gt;)) # arrow function operator!
     `,
     captures: {
@@ -726,11 +758,11 @@ let DESTRUCTURING = new Grammar({
   }
 });
 
-let IMPORT_SPECIFIERS = new Grammar({
+let IMPORT_SPECIFIERS = new Grammar('import specifiers', {
   ordinary: {
     pattern: VerboseRegExp`
       (^|,) # 1: beginning of string or comma
-      (\s*) # 2: optional space
+      ([\s\n]*) # 2: space
       ([A-Za-z_$][A-Za-z_$0-9]*) # 3: identifier
       (\s*) # 4: optional space
       (?=$|,) # followed by end of string or comma
@@ -744,7 +776,7 @@ let IMPORT_SPECIFIERS = new Grammar({
   'default as': {
     pattern: VerboseRegExp`
       (^|,)     # 1: beginning of string or comma
-      (\s*)     # 2: space
+      ([\s\n]*)     # 2: space
       (default) # 3: "default"
       (\s*)     # 4: space
       (as)      # 5: "as"
@@ -759,10 +791,30 @@ let IMPORT_SPECIFIERS = new Grammar({
       '5': 'keyword keyword-as',
       '7': 'variable variable-import'
     }
+  },
+
+  'foo as bar': {
+    pattern: VerboseRegExp`
+      (^|,)     # 1: beginning of string or comma
+      ([\s\n]*)     # 2: space
+      ([\w$][\w\d$]*) # 3: identifier
+      (\s+)     # 4: space
+      (as)      # 5: "as"
+      (\s+)     # 6: space
+      ([\w$][\w\d$]*) # 7: identifier
+      (\s*)     # 8: space
+      (?=$|,) # followed by end of string or comma
+    `,
+    captures: {
+      '1': 'punctuation',
+      '3': 'variable variable-import',
+      '5': 'keyword keyword-as',
+      '7': 'variable variable-import'
+    }
   }
 });
 
-let IMPORT_SPECIFIER = new Grammar({
+let IMPORT_SPECIFIER = new Grammar('import specifier', {
   'implicit default specifier': {
     pattern: VerboseRegExp`
       ^(\s*) # 1: optional space anchored to beginning of import
@@ -836,9 +888,137 @@ let IMPORTS = new Grammar({
   }
 });
 
+let EXPORT_SPECIFIERS = new Grammar('export specifiers', {
+  ordinary: {
+    pattern: VerboseRegExp`
+      (^|,) # 1: beginning of string or comma
+      (\s*) # 2: optional space
+      ([A-Za-z_$][A-Za-z_$0-9]*) # 3: identifier
+      (\s*) # 4: optional space
+      (?=$|,) # followed by end of string or comma
+    `,
+    captures: {
+      '1': 'punctuation',
+      '3': 'variable variable-export'
+    }
+  },
+
+  'as default': {
+    pattern: VerboseRegExp`
+      (^|,)     # 1: beginning of string or comma
+      (\s*)     # 2: space
+      ([\w$][\w\d$]*) # 3: identifier
+      (\s*)     # 4: space
+      (as)      # 5: "as"
+      (\s*)     # 6: space
+      (default) # 7: "default"
+      (\s*)     # 8: space
+      (?=$|,) # followed by end of string or comma
+    `,
+    captures: {
+      '1': 'punctuation',
+      '3': 'variable variable-export',
+      '5': 'keyword keyword-as',
+      '7': 'keyword keyword-default',
+    }
+  },
+
+  'as [identifier]': {
+    pattern: VerboseRegExp`
+      (^|,)     # 1: beginning of string or comma
+      (\s*)     # 2: space
+      ([\w$][\w\d$]*) # 3: identifier
+      (\s*)     # 4: space
+      (as)      # 5: "as"
+      (\s*)     # 6: space
+      ([\w$][\w\d$]*) # 7: identifier
+      (\s*)     # 8: space
+      (?=$|,) # followed by end of string or comma
+    `,
+    captures: {
+      '1': 'punctuation',
+      '3': 'variable variable-import',
+      '5': 'keyword keyword-as',
+      '7': 'variable variable-export'
+    }
+  }
+});
+
+let EXPORT_SPECIFIER = new Grammar('export specifier', {
+  specifiers: {
+    pattern: VerboseRegExp`
+      (\{)(\s*) # opening brace
+      ([^}]+) # stuff in the middle
+      (}) # closing brace
+    `,
+    captures: {
+      '3': EXPORT_SPECIFIERS
+    }
+  }
+});
+
+let EXPORTS = new Grammar('exports', {
+  'export with destructuring': {
+    pattern: VerboseRegExp`
+      (^\s*)
+      (export)(\s*)
+      (?=\{) # lookahead: opening brace
+      ([\s\S]*?\s*\}) # ending with a closing brace
+    `,
+    captures: {
+      '2': 'keyword keyword-export',
+      '4': EXPORT_SPECIFIER
+    }
+  },
+
+  'export default with identifier': {
+    pattern: VerboseRegExp`
+      (^\s*)   # 1: optional leading space
+      (export) # 2: keyword
+      (\s+)    # 3: space
+      (default) # 4: "default" keyword
+      (\s+)    # 5: space
+      ([\w$][\w\d$]*) # 6: identifier
+    `,
+    captures: {
+      '2': 'keyword keyword-export',
+      '4': 'keyword keyword-default',
+      '6': 'variable variable-export'
+    }
+  },
+
+  'export by itself or with default': {
+    pattern: VerboseRegExp`
+      (^\s*)   # 1: optional leading space
+      (export) # 2: keyword
+      (\s+)    # 3: space
+      (default)? # 4: optional "default" keyword
+      (\s*) # 5: zero or more spaces (since default is optional)
+      (?=let|const|var|function|\[|\{) # (lookahead) a token that would distinguish from the identifier scenario
+    `,
+    captures: {
+      '2': 'keyword keyword-export',
+      '4': 'keyword keyword-default'
+    }
+  }
+});
+
 let OPERATORS = new Grammar({
   'keyword operator': {
-    pattern: /\|\||&&|&amp;&amp;|!==?|={1,3}|>=?|<=?|\+\+|\+|--|-|\*|[\*\+-\/]=|\?|\.{3}|\b(?:instanceof|in|of)\b/
+    pattern: /\|\||&&|&amp;&amp;|!==?|={1,3}|(?:>=|&gt;=)|(?:<=|&lt;=)|\+\+|\+|--|-|\*|[\*\+-\/]=|\.{3}|\b(?:instanceof|in|of)\b|!|void|\.|(?:>|&gt;)|(?:<|&lt;)/
+  },
+  // Ternary colons are very hard to distinguish from property-value-pair
+  // colons. Punt on it! Don't highlight a colon or a question mark as ternary
+  // operators unless they're flanked by spaces.
+  'meta: ternary colon': {
+    pattern: VerboseRegExp`
+      (\s+)
+      (\?|:)
+      (\s+)
+    `,
+    captures: {
+      2: 'keyword operator operator-ternary'
+    }
   }
 });
 
@@ -848,10 +1028,11 @@ JSX_EXPRESSIONS.extend(VALUES);
 JSX_EXPRESSIONS.extend(ARROW_FUNCTIONS);
 JSX_EXPRESSIONS.extend(OPERATORS);
 
-let MAIN = new Grammar('javascript-jsx', {}, { alias: ['react', 'javascript'] });
+let MAIN = new Grammar('javascript-jsx', {}, { alias: ['react', 'javascript', 'js'] });
 
 MAIN.extend(JSX_TAG_ROOT);
 MAIN.extend(IMPORTS);
+MAIN.extend(EXPORTS);
 MAIN.extend(VALUES);
 
 MAIN.extend({
@@ -884,6 +1065,7 @@ MAIN.extend({
     `,
     captures: {
       '1': 'keyword keyword-new',
+      '3': () => OPERATORS,
       '4': 'entity-class'
     }
   },
@@ -1043,18 +1225,12 @@ MAIN.extend({
       (\s*)                  # 8: space
       ({)                    # 9: opening brace
     `,
-    index: (match) => {
+    index (match) {
       return balance(
         match, '}', '{',
         { startIndex: match.indexOf('{') + 1 }
       );
     },
-    replacement: compact(`
-      <span class="storage">#{1}</span>
-      #{2}#{3}
-      #{4}#{5}#{6}#{7}
-      #{8}#{9}
-    `),
     captures: {
       '1': 'storage',
       '3': 'entity entity-class',
@@ -1064,7 +1240,7 @@ MAIN.extend({
   },
 
   storage: {
-    pattern: /\b(?:var|let|const|class|extends|async)\b/
+    pattern: /\b(?:var|let|const|class|extends|async|static)\b/
   },
 
   keyword: {

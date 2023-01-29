@@ -14,7 +14,7 @@ But why did I write it instead of just using Prism? Because I don’t like the b
 
 ### Annotate your `code` elements with class names
 
-To highlight a block of code, you must first give its `code` element a class name equal to the name of the grammar you've defined. Above, we defined a grammar named `ruby`, so HTML that looks like this:
+To highlight a block of code, you must first give its `code` element a class name equal to the name of the grammar you've defined. Our goal is make it so that HTML like this:
 
 ```html
 <pre><code class="ruby">module Foo
@@ -28,7 +28,7 @@ will get transformed into this:
 <span class='keyword'>end</span></code></pre>
 ```
 
-If you’d rather use more specific class names, like (e.g.) `language-ruby`, you can define a custom class prefix as described below.
+If you’d rather mark your code blocks a different way — e.g., `<code data-language="ruby">` — you can define a custom selector as I’ll describe below.
 
 ### Set up your highlighter
 
@@ -46,6 +46,7 @@ highlighter.addGrammar(RUBY);
 The highlighter constructor takes an optional `options` argument.
 
 * `classPrefix`: A token that the highlighter should prepend to class names before it starts searching for code blocks. If your Ruby code has a class name of `language-ruby`, you’d specify a value of `"language-"` here. Defaults to an empty string.
+* `customSelector`: A more generic function for specifiying the selector(s) that match the code blocks you want highlighted. The function can return a string or an array. (If the selector includes commas, the individual parts should be returned as an array instead.)
 
 You can add any element, and any _named_ grammar, to a highlighter.
 
@@ -53,7 +54,30 @@ You can add any element, and any _named_ grammar, to a highlighter.
 highlighter.highlight();
 ```
 
-Each time `highlight` is called, the highlighter will scan for new code blocks. You can call `highlight` again whenever there might be new content to be highlighted. Choose your own strategy for automating this if you like — poll every second, set up a `MutationObserver`, go nuts.
+Each time `highlight` is called, the highlighter will search for new code blocks under the specified element(s). You can call `highlight` again whenever there might be new content to be highlighted. Choose your own strategy for automating this if you like — poll every second, set up a `MutationObserver`, go nuts.
+
+### Write some CSS for the syntax
+
+```css
+code {
+  background-color: #000;
+  color: #fff;
+}
+
+code .keyword {
+  color: #f60;
+}
+
+code .entity {
+  color: #fc0;
+}
+
+code .module {
+  text-decoration: underline;
+}
+```
+
+And so on. Consult `test/theme.css` for a sample theme.
 
 ## How does it work?
 
@@ -81,7 +105,7 @@ let RUBY = new Grammar('ruby', {
 
   'module': {
     pattern: /(module)(\s*)(A-Za-z_\w*)/,
-    replacement: `<span class="keyword">#{1}</span>#{2}<span class="entity entity-module">#{3}</span>`
+    replacement: `<span class="#{name}">#{1}</span>#{2}<span class="entity entity-module">#{3}</span>`
   }
 
   // ...
@@ -94,18 +118,34 @@ Here's what we just did:
 
 * We instantiated a `Grammar` with a name of `ruby`. (The “main” grammar, the one you export, should be named; other grammars don't need names.) The second argument is an object that defines the grammar's rules.
 * We defined a rule named `keyword`. This rule will replace any matches with the default replacement: placing the entire match inside a `span` tag whose `class` is set to the name of the rule. In this case: `<span class='keyword'>if</span>`.
-* We defined another rule named `module`. This rule will replace any matches with the string specified in the `replacement` property — substituting `#{1}` with the first capture, `#{2}` with the second, et cetera. In the replacement string, `#{name}` refers to the name of the rule (`entity module`, in this case).
+* We defined another rule named `module`. This rule will replace any matches with the string specified in the `replacement` property — substituting `#{1}` with the first capture, `#{2}` with the second, et cetera. In the replacement string, `#{name}` refers to the name of the rule (`module`, in this case).
 
+### Naming conventions
 
-## Capture groups
+The naming conventions of grammars are influenced heavily by TextMate grammars — which have also influenced the naming conventions of Atom, Sublime Text, and VS Code grammars — so this may be familiar to you already. Some conventions to keep in mind:
+
+* `keyword`: Control words, operators, and the like. Examples: `if`, `else`, `==` (in C-like languages); `@media` (in CSS)
+* `entity`: A function, class, or module name (when defined, not when invoked). Examples: `foo` in `function foo`, `Highlighter` in `class Highlighter`
+* `constant`: An invariant — e.g., a hex code, a constant, a symbol. Examples: `:something` (in Ruby), `PI`, `#fff`
+* `storage`: Type annotations and other modifiers. Examples:
+  * JavaScript: `var`, `let`, `const`, `static`
+  * C: `unsigned`, `int`, `char`, `volatile`
+* `string`: Strings of all kinds. Add a second class name for the kind: `string-single-quoted`, `string-double-quoted`, `string-unquoted`, et cetera.
+* `support`: Common functions/classes/values in the standard library. Examples: `replaceChild` (in DOM/JavaScript), `strpos` (in PHP)
+* `comment`: Comments and other things that are ignored by the program.
+* `regexp`: Regular expression literals.
+
+Some stuff doesn't fit easily into this taxonomy, and that's fine. Simplicity is more important than fastidious order.
+
+### Capture groups
 
 Daub aims to support tokenization of capture groups just like the syntax highlighting approaches taken by, say, TextMate or Atom. But those IDEs use the [Oniguruma][] regular expression engine, and I’m using JavaScript’s built-in engine. I can execute a pattern against a string, and the resulting match object will tell me about any capture group matches, but it won’t tell me _where_ they are in the string.
 
-The way around this, as annoying as it is, is to ensure that _every part of the pattern_ is captured in its own group. You can see how this works in the `module` example above.
+The way around this, as annoying as it is, is to ensure that _every part of the pattern_ is captured in its own group. You can see how this works in the `module` example above; we capture `\s*` because we have to, and then we pass it along in the replacement string as `#{2}`, untransformed in any way.
 
-## The `captures` shorthand
+#### The `captures` shorthand
 
-That `module` example, in fact, can be written more tersely:
+Writing your own `replacement` string is a bit tedious. Hence our `module` example can be written more tersely:
 
 ```javascript
 import { Grammar } from 'daub';
@@ -131,7 +171,7 @@ The `captures` property, if it exists, will be used by Daub to decide how to tra
 
 (This is handled by the `wrap` method in `utils.js`. If a capture group is empty or nonexistent, `wrap` will return an empty string instead of wrapping a `span` tag around nothing.)
 
-## How replacements work
+#### How replacements work
 
 Here’s how Daub decides which kind of replacement to use for a pattern:
 
@@ -140,47 +180,25 @@ Here’s how Daub decides which kind of replacement to use for a pattern:
 3. If not, have you defined a `captures` property? Daub will infer that you want to use capture groups, and will default to a simple replacement with the exact number of capture groups that your pattern uses. If your pattern uses four capture groups, Daub will default to a replacement of `#{1}#{2}#{3}#{4}`. It _will not_ wrap the output in a `span` with a class name corresponding to the name of the rule, since that’s usually not what complex rules want.
 4. But if you have _also_ defined a `wrapReplacement` property with a value of `true`, Daub _will_ wrap the entire match in a container — e.g., `<span class="#{name}">#{1}#{2}#{3}#{4}</span>`, to continue the example above.
 
-### Write some CSS for the syntax
+#### Caveats for writing grammars
 
-```css
-code {
-  background-color: #000;
-  color: #fff;
-}
+When you define a grammar, you write one regular expression for each rule. When Daub compiles that grammar, it assembles each regular expression into **one giant regular expression**. Each pattern gets concatenated together as an alternation (`|`).
 
-code .keyword {
-  color: #f60;
-}
+When Daub parses a block of text, it executes that one regex against the text over and over again. When it finds a match, it figures out which rule got matched, applies the replacement text, removes all text before the match index from the source string, and appends it to the destination string. It then continues parsing from the end of the previous match.
 
-code .entity {
-  color: #fc0;
-}
+This means that **all else being equal, earlier rules will match before later rules**. Typically you want simple, generic rules (like comment syntax) to come toward the end of the grammar so that all would-be false positives can get matched by other rules first.
 
-code .module {
-  text-decoration: underline;
-}
-```
+It also means that **you shouldn't put flags on your regular expressions**. If you want a grammar to be case-insensitive, pass `{ ignoreCase: true }` as the last argument in the `Grammar` constructor.
 
-And so on. Consult `test/theme.css` for a sample theme.
+This further means that **case insensitivity is all-or-nothing within a language**. In some languages, like HTML, this is probably what you want. In more complicated stuff like JavaScript, total case insensitivity won't work at all. If an individual rule needs to be case-insensitive, you'll have to get creative in how you write its regular expression.
 
-The naming conventions of grammars are influenced heavily by TextMate grammars — which have also influenced the naming conventions of Atom, Sublime Text, and VS Code grammars — so this may be familiar to you already. Some conventions to keep in mind:
+Finally, **be aware of HTML entities**. Depending on what language you're parsing and how your CMS works, some characters might be HTML-encoded before they get parsed. Any code block containing sample HTML will, for obvious reasons, already be encoded in an HTML context, and languages that use greater-than/less-than symbols and/or ampersands (i.e., most of them) are likely to encounter encoded versions of those symbols. The safest approach is to write your patterns in a way that can accept (e.g.) either `<` _or_ `&lt;`.
 
-* `keyword`: Control words, operators, and the like. Examples: `if`, `else`, `==` (in C-like languages); `@media` (in CSS)
-* `entity`: A function, class, or module name (when defined, not when invoked). Examples: `foo` in `function foo`, `Highlighter` in `class Highlighter`
-* `constant`: An invariant — e.g., a hex code, a constant, a symbol. Examples: `:something` (in Ruby), `PI`, `#fff`
-* `storage`: Type annotations and other modifiers. Examples:
-  * JavaScript: `var`, `let`, `const`, `static`
-  * C: `unsigned`, `int`, `char`, `volatile`
-* `string`: Strings of all kinds. Add a second class name for the kind: `string-single-quoted`, `string-double-quoted`, `string-unquoted`, et cetera.
-* `support`: Common functions/classes/values in the standard library. Examples: `replaceChild` (in DOM/JavaScript), `strpos` (in PHP)
-* `comment`: Comments and other things that are ignored by the program.
-* `regexp`: Regular expression literals.
-
-Some stuff doesn't fit easily into this taxonomy, and that's fine. Simplicity is more important than fastidious order.
+## Advanced usage
 
 ### Feed text to your parser
 
-Once you define a grammar, you can use its `parse` method to parse arbitrary text.
+You don’t have to use the `Highlighter` class at all. Once you define a grammar, you can use its `parse` method to parse arbitrary text:
 
 ```javascript
 RUBY.parse(
@@ -192,11 +210,9 @@ end`);
 
 ```
 
-You might find this useful just by itself, in fact. The `Grammar` class uses no browser APIs, so you could theoretically use it server-side to highlight code.
+The `Grammar` class uses no browser APIs, so you could theoretically use it server-side to highlight code.
 
 The main value of this, though, is in defining “sub-grammars” within your grammar and feeding them portions of text to parse.
-
-## Advanced usage
 
 ### Sub-grammars
 
@@ -210,7 +226,7 @@ let ESCAPES = new Grammar({
 });
 ```
 
-(Remember, the `name` argument is optional; if you’re not adding a grammar to a `Highlighter` instance, it doesn’t need a name at all.)
+(A grammar only needs an initial `name` argument if you’re going to add it to a `Highlighter` instance. Otherwise you can omit it and just keep a reference to the grammar.)
 
 An “escapes” grammar is perhaps too specialized to apply broadly, so instead of adding it to our main grammar, we define it separately and call it when we know we're dealing with the contents of strings. Which brings us to…
 
@@ -267,7 +283,7 @@ Yeah, the same `captures` shorthand we used earlier. When a capture group refers
 
 This next example is more elaborate: it allows us to highlight the default values in function parameters.
 
-```javascript
+```js
 import { Grammar, Utils } from 'daub';
 let { VerboseRegExp } = Utils;
 
@@ -386,9 +402,11 @@ In other words, we can write a pattern that asks for much more of the text than 
 ```javascript
 function balance (string, token, paired, startIndex) {
   // A hypothetical function that searches through a string manually, keeping
-  // track of balance, until it finds the first balanced occurrence of
-  // `token`; it then returns the index of that character. (The `utils`
-  // export contains a similar convenience function.)
+  // track of balance, until it finds the first balanced occurrence of `token`;
+  // it then returns the index of that character.
+  //
+  // But it's _not_ hypothetical! It actually exists in Daub, and you can use
+  // it yourself!
 }
 
 const RUBY = new Grammar({
@@ -409,7 +427,9 @@ const RUBY = new Grammar({
     // that the pattern originally matched; they'll be against the segment of
     // the string that we later decided we cared about.
     captures: {
-      '2': STRINGS
+      '1' 'punctuation punctuation-brace-start',
+      '2': STRINGS,
+      '3': 'punctuation punctuation-brace-end'
     }
   },
 
@@ -420,8 +440,8 @@ const RUBY = new Grammar({
 To summarize:
 
 * If you return a number X from the `index` callback, the rule will re-match against only the first X characters of the string before proceeding. The part of the string you didn't want will remain unparsed.
-* If you don't return anything from the callback, or return a negative number, the return value will be ignored, and Daub will take that to mean that the full match should be consumed after all. This allows you to, e.g., return the result of a `String#indexOf` call without guarding against `-1` first.
-* The index you return _must_ result in a substring that will still get matched by the operative rule. If the substring matches a different rule in the grammar, or no rule at all, an error will be thrown.
+* If you don't return anything from the callback, _or_ return a negative number, the return value will be ignored, and Daub will take that to mean that the full match should be consumed after all. (This allows you to, e.g., return the result of a `String#indexOf` call without guarding against `-1` first.)
+* The index you return _must_ result in a substring _that will still get matched by the operative rule_. If the substring matches a different rule in the grammar, or no rule at all, an error will be thrown.
 
 ### Deferred loading of values in `captures`
 
@@ -490,7 +510,7 @@ const HTML = new Grammar({
 
 In this example, if the highlighter exists and knows about a grammar named `javascript` — i.e., if one was supplied via `addGrammar` — it'll highlight the contents using that grammar. If not, it'll silently return the text it was given.
 
-Second: you can share state across rules by using the context as a hash. The `Context#set` and `Context#get` methods work almost exactly like those on an ES6 [Map] object, except that `get` takes a second argument for a fallback value.
+Second: you can share state across rules by using the context as a hash. The `Context#set` and `Context#get` methods work almost exactly like those on an ES6 [Map][] object, except that `get` takes a second argument for a fallback value.
 
 As an example of how this can be used, here's one way a grammar can resolve ambiguity when parsing tokens with multiple meanings:
 
@@ -530,9 +550,9 @@ In this approach, we match an opening brace that is followed by block parameters
 
 The `meta: close bracket` rule, then, ends up acting as a catch-all that can close the blocks that other rules opened. It will match whenever we encounter a closing brace that hasn't already been matched by a more specific rule. In that case, we pop the last item off of the shared braces stack to figure out how we should highlight the closing brace.
 
-(Note how we use a `b` element for groups instead of `span`: `b` is also nonsemantic, and we can style it as `font-weight: normal` in the theme. Using a different tag for the groups should result in much less confusion when you’re looking at the grammar a year afterward — you won’t wonder “…why does this rule close more `spans` than it opened?”)
+(Note how, in this example, we use a `b` element for groups instead of `span`: `b` is also nonsemantic, and we can style it as `font-weight: normal` in the theme. Using a different tag for the groups should result in much less confusion when you’re looking at the grammar a year afterward — you won’t wonder “…why does this rule close more `spans` than it opened?”)
 
-Contexts are not shared across elements. A new context is created whenever Daub begins highlighting a particular element with a particular language — or you can pass an existing context as the second argument to `Grammar#parse` (or the third argument to `Highlighter#parse`). You should do this if you use sub-grammars for contextual parsing, so that the sub-grammars can share state with the parent grammar.
+Contexts are not shared across elements. A new context is created whenever Daub begins highlighting a particular element with a particular language — or you can pass an existing context as the second argument to `Grammar#parse` (or the third argument to `Highlighter#parse`). The `captures` shorthand does this automatically, but if you invoke your sub-grammars manually as part of a `before` callback, you’ll have to remember to pass that `context` argument yourself.
 
 
 ### The ‘extend’ method
@@ -588,7 +608,7 @@ Utils.compact(`
 
 #### wrap(string, className)
 
-Same shorthand used internally by `captures`. Wraps `string`, if present, with a `span` whose `class` attribute is equal to `className`. If `string` is falsy — empty string, `null`, `undefined` — `wrap` will return an empty string.
+Same shorthand used internally by `captures`. Wraps `string`, if present and truthy, with a `span` whose `class` attribute is equal to `className`. If `string` is falsy — empty string, `null`, `undefined` — `wrap` will return an empty string.
 
 ```javascript
 import { Utils } from 'daub';
@@ -616,9 +636,9 @@ let pattern = VerboseRegExp`
 `;
 ```
 
-`VerboseRegExp` works like `[String.raw][]` — it acts on the raw string literal before escape sequences are interpreted. So no “double-escaping” is necesssary; for example ,you can write `\n` instead of `\\n` (just like you would in a regex literal) without it turning into a literal newline.
+`VerboseRegExp` works like [`String.raw`][] — it acts on the raw string literal before escape sequences are interpreted. So no “double-escaping” is necesssary; for example, you can write `\n` instead of `\\n` (just like you would in a regex literal) without it turning into a literal newline.
 
-(Sadly, this doesn't work for backreferences to capture groups; `\1` needs to be written as `\\1`. This is because of a [spec oversight](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#Tagged_template_literals_and_escape_sequences) that will eventually be corrected in the language.)
+(Sadly, this doesn't work for backreferences to capture groups; `\1` needs to be written as `\\1`. This is because of a [spec oversight](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#tagged_templates_and_escape_sequences) that will eventually be corrected in the language.)
 
 To match a literal `#` character in the regex, use `\#`.
 
@@ -649,23 +669,13 @@ Properties on `event.detail`:
 * `highlighter`: the `Highlighter` instance.
 * `grammar`: the `Grammar` instance.
 
+## Plugins
+
+You could use these events pretty creatively, if you like. Daub exports a `PLUGINS` object with some examples; see `PLUGINS.md` for documentation.
+
 ## ES6
 
 Daub is written in ES6 and uses ES6 imports, so you'll need to transform it one way or another before it runs in a browser or in Node. The `build` command uses [Rollup][] to generate an all-inclusive package for the browser, but many will prefer to grab the source files so that they can integrate them into their existing transpilation-and-bundling toolchain.
-
-## Caveats
-
-When you define a grammar, you write one regular expression for each rule. When Daub compiles that grammar, it assembles each regular expression into **one giant regular expression**. Each pattern gets concatenated together as an alternation (`|`).
-
-When Daub parses a block of text, it executes that one regex against the text over and over again. When it finds a match, it figures out which rule got matched, applies the replacement text, removes all text before the match index from the source string, and appends it to the destination string. It then continues parsing from the end of the previous match.
-
-This means that **all else being equal, earlier rules will match before later rules**. Typically you want simple, generic rules (like comment syntax) to come toward the end of the grammar so that all would-be false positives can get matched by other rules first.
-
-It also means that **you shouldn't put flags on your regular expressions**. If you want a grammar to be case-insensitive, pass `{ ignoreCase: true }` as the last argument in the `Grammar` constructor.
-
-This further means that **case insensitivity is all-or-nothing within a language**. In some languages, like HTML, this is probably what you want. In more complicated stuff like JavaScript, total case insensitivity won't work at all. If an individual rule needs to be case-insensitive, you'll have to get creative in how you write its regular expression.
-
-Finally, **be aware of HTML entities**. Depending on what language you're parsing and how your CMS works, some characters might be HTML-encoded before they get parsed. Any code block containing sample HTML will, for obvious reasons, already be encoded in an HTML context, and languages that use greater-than/less-than symbols and/or ampersands (i.e., most of them) are likely to encounter encoded versions of those symbols. The safest approach is to write your patterns in a way that can accept (e.g.) either `<` _or_ `&lt;`.
 
 
 [Fluorescence]: https://github.com/savetheclocktower/fluorescence/
@@ -674,3 +684,4 @@ Finally, **be aware of HTML entities**. Depending on what language you're parsin
 [tagged template literal]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#Tagged_template_literals
 [Map]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [star-light]: http://dean.edwards.name/star-light/
+[Prism]: https://prismjs.com

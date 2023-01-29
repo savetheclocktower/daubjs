@@ -1,7 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <link rel="stylesheet" href="./theme.css"   type="text/css">
   <link rel="stylesheet" href="./support.css" type="text/css">
@@ -31,12 +29,41 @@
 <h1 id="entities">HTML Entities</h1>
 
 <pre><code class="html">
-<ul>
-  <li>Named &amp;rarr; entities &amp;raquo;</li>
-  <li>
+&lt;UL>
+  &lt;li>Named &amp;rarr; entities &amp;raquo;&lt;/li>
+  &lt;li>
     Numeric &amp;#041; entities &amp;#x09f;
-  </li>
-</ul>
+  &lt;/li>
+&lt;/ul>
+</code></pre>
+
+<h1 id="custom-elements">Custom elements</h1>
+
+<pre><code class="html">
+&lt;my-citation foo="bar">Ki-Jana Carter&lt;/my-citation>
+</code></pre>
+
+<h1 id="inception">Inception</h1>
+
+<pre><code class="html">
+&lt;!DOCTYPE html "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+&lt;!DOCTYPE html>
+&lt;html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+&lt;head>
+  &lt;link rel="stylesheet" href="./theme.css"   type="text/css">
+  &lt;link rel="stylesheet" href="./support.css" type="text/css">
+
+  &lt;script src="../dist/daub.umd.js">&lt;/script>
+  &lt;script src="./support.js">&lt;/script>
+
+  &lt;!-- this is a comment -->
+  &lt;!--
+    this is a comment that spans several lines
+  -->
+  &lt;title>Daub tests&lt;/title>
+
+&lt;/head>
 </code></pre>
 
 <script type="text/javascript">

@@ -17,6 +17,10 @@
 //   return "bar";
 // }</code></pre>
 //
+//
+// This plugin is adapted from the excellent (MIT-licensed) Prism plugin:
+// https://github.com/PrismJS/prism/tree/master/plugins/normalize-whitespace
+// 
 
 // Given a document fragment, find the first text node in the tree,
 // depth-first, or `null` if none is found.

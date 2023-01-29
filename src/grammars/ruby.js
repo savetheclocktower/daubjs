@@ -95,6 +95,16 @@ const BLOCK_PARAMETERS = new Grammar({
 // In other words, (nearly) anything that's valid on the right hand side of
 // an assignment operator.
 const VALUES = new Grammar({
+  'named constant': {
+    // Technically, an identifier only needs an initial capital to be treated
+    // as a constant, but in practice most constants use all-caps, and this way
+    // we don't treat classes as constants.
+    pattern: /\b([A-Z][A-Z0-9_]*)\b/,
+    captures: {
+      '1': 'constant'
+    }
+  },
+
   // Single-quoted strings are easy; they have no escapes _or_
   // interpolation.
   'string string-single-quoted': {
@@ -373,7 +383,7 @@ const MAIN = new Grammar('ruby', {
       </span>
     `),
     captures: {
-      '2': () => STRINGS
+      '3': () => STRINGS
     }
   },
 
@@ -398,7 +408,7 @@ MAIN.extend({
   'bracket-block-end': {
     pattern: /\}/,
     replacement: "#{0}",
-    after: (text, context) => {
+    after (text, context) {
       let stack = context.get('bracesStack', []);
       let scope = stack.pop();
       if (!scope) return;
@@ -408,7 +418,7 @@ MAIN.extend({
 
   'keyword keyword-block-end': {
     pattern: /\b(end)\b/,
-    after: (text, context) => {
+    after (text, context) {
       let stack = context.get('bracesStack', []);
       let scope = stack.pop();
       if (!scope) return;

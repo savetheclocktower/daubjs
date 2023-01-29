@@ -32,7 +32,7 @@ class AbstractHighlighter {
   // PRIVATE
   // =======
 
-  _fire (name, element, detail, opts = {}) {
+  _fire (name, element, detail = {}, opts = {}) {
     detail.highlighter = this;
     let event = new CustomEvent(
       `daub-${name}`,
@@ -180,7 +180,7 @@ class AsyncHighlighter extends AbstractHighlighter {
       let source = element.innerHTML;
       let language = this._getLanguage(element);
       // TODO: Encode?
-      this._parse(source, language, uid, (parsed, element) => {
+      this.parse(source, language, uid, (parsed, element) => {
         complete++;
         if (complete === length) {
           // All found nodes are done highlighting.
@@ -191,7 +191,7 @@ class AsyncHighlighter extends AbstractHighlighter {
         /**
          * Event that signifies that highlighting has occurred on a given
          * element.
-         * @event data-daub-highlighted
+         * @event daub-highlighted
          * @memberof AsyncHighlighter
          * @type {Object}
          * @property element The element which received the highlighting.
@@ -210,7 +210,12 @@ class AsyncHighlighter extends AbstractHighlighter {
 
   _handleMessage (e) {
     let { id, language, source } = e.data;
-    let element = this.node.querySelector(`[data-daub-uid="${id}"]`);
+    let element;
+    for (let el of this.elements) {
+      element = el.querySelector(`[data-daub-uid="${id}"]`);
+      if (element) { break; }
+    }
+    // let element = this.node.querySelector(`[data-daub-uid="${id}"]`);
     let callback = this._callbacks[id];
     delete this._callbacks[id];
     if (!element) {
@@ -239,9 +244,9 @@ class AsyncHighlighter extends AbstractHighlighter {
 
     this.worker.postMessage({
       type: 'parse',
-      text: text,
-      id: uid,
-      language: language
+      text,
+      language,
+      id: uid
     });
   }
 
@@ -275,8 +280,9 @@ class AsyncHighlighter extends AbstractHighlighter {
   highlight (callback = EMPTY_FUNCTION) {
     let elementCount = this.elements.length;
     let count = 0;
-    let allAffectedNodes = 0;
+    let allAffectedNodes = [];
     let innerCallback = (affectedNodes = []) => {
+      // allAffectedNodes += affectedNodes.length;
       allAffectedNodes.push(...affectedNodes);
       count++;
       if (count === elementCount) { callback(allAffectedNodes); }
@@ -356,6 +362,7 @@ class Highlighter extends AbstractHighlighter {
         if ( el.hasAttribute('data-daub-highlighted') ) { return; }
         let context = new Context({ highlighter: this });
         let source = el.innerHTML;
+        console.log('source???', source);
         if (grammar.options.encode) {
           source = source.replace(/</g, '&lt;');
         }
@@ -368,7 +375,7 @@ class Highlighter extends AbstractHighlighter {
         /**
          * Event that signifies that highlighting has occurred on a given
          * element.
-         * @event data-daub-highlighted
+         * @event daub-highlighted
          * @memberof Highlighter
          * @type {Object}
          * @property element The element which received the highlighting.

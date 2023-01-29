@@ -1,24 +1,33 @@
 /* global daub */
 /* eslint-disable no-console */
-var LOC = location.toString();
-var IS_ASYNC = LOC.match(/\?worker/);
+const LOC = location.toString();
+const IS_ASYNC = LOC.match(/\?worker/);
 
-var HIGHLIGHTER;
-var WORKER = null;
-var GRAMMAR = null;
+let HIGHLIGHTER;
+let WORKER = null;
+let GRAMMAR = null;
 if (IS_ASYNC) {
   WORKER = new Worker('/dist/daub.worker.umd.js');
 }
 
-var Support = {
+let _runningLexerTime = 0;
+let _runningLexerCount = 0;
+document.addEventListener('daub-lexer-time', (e) => {
+  let time = e.detail;
+  _runningLexerTime += time;
+  _runningLexerCount++;
+  console.info('Lexer time:', time, 'ms. Cumulative:', _runningLexerTime, 'Count:', _runningLexerCount);
+});
+
+const Support = {
   setup () {
     if (!GRAMMAR) {
       let meta = document.querySelector(`meta[name="language"], meta[name="daub-language"]`);
       if (meta) {
         GRAMMAR = meta.getAttribute('value');
       } else {
-        var loc = window.location.toString();
-        var m = loc.match(/\/(\w*?)\.html/);
+        let loc = window.location.toString();
+        let m = loc.match(/\/(\w*?)\.html/);
         if (m) { GRAMMAR = m[1]; }
       }
     }
@@ -45,14 +54,12 @@ var Support = {
       root = document.querySelector('[data-only]');
     }
 
-    for (var name in daub.PLUGINS) {
-      daub.PLUGINS[name]();
+    for (let [name, plugin] of Object.entries(daub.PLUGINS)) {
+      plugin();
     }
 
     if (IS_ASYNC) {
-      HIGHLIGHTER = new daub.AsyncHighlighter({
-        worker: WORKER
-      });
+      HIGHLIGHTER = new daub.AsyncHighlighter(WORKER);
     } else {
       HIGHLIGHTER = new daub.Highlighter();
       if (GRAMMAR) {
@@ -62,27 +69,27 @@ var Support = {
           if (g) { HIGHLIGHTER.addGrammar(g); }
         });
       } else {
-        for (var key in daub.GRAMMARS) {
-          HIGHLIGHTER.addGrammar(daub.GRAMMARS[key]);
+        for (let grammar of daub.GRAMMARS) {
+          HIGHLIGHTER.addGrammar(grammar);
         }
       }
     }
 
     HIGHLIGHTER.addElement(root);
 
-    var start, end;
+    let start, end;
     start = performance.now();
     if (performance && performance.mark) {
       performance.mark('daub-before');
     }
 
-    var markEnd = function () {
+    let markEnd = function () {
       if (performance && performance.mark) {
         performance.mark('daub-after');
         performance.measure('daub-before', 'daub-after');
       }
       end = performance.now();
-      console.log('Highlight time:', end - start, 'ms');
+      console.info('Highlight time:', end - start, 'ms');
     };
 
     if (IS_ASYNC) {

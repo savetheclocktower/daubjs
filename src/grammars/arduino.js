@@ -92,9 +92,9 @@ const DECLARATIONS = new Grammar({
       \b([A-Za-z_$][\w\d]*) # 1: type
       (\s+)                 # 2: whitespace
       ([A-Za-z_$][\w\d]*)   # 3: identifier
-      (\[)                   # 4: open bracket
+      (\[)                  # 4: open bracket
       (\d+)                 # 5: number
-      (\])                   # 6: close bracket
+      (\])                  # 6: close bracket
     `,
     captures: {
       '1': 'storage storage-type',

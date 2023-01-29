@@ -1,5 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
@@ -20,6 +19,22 @@
 
 <ul id="menu"></ul>
 
+<h1 id="simple_example">Simple example</h1>
+
+<pre><code class="javascript-jsx">function SomeComponent () {
+  return &lt;SomeOtherComponent foo="bar" /&gt;;
+}
+
+function SomeOtherComponent () {
+  return &lt;SomeFurtherComponent troz="zort" /&gt;;
+}
+</code></pre>
+
+<h1 id="mean_example">Mean example</h1>
+<pre><code class="javascript-jsx">function SomeComponent () {
+  &lt;SomeOtherComponent foo="bar" onClick={(e) => { return; }} /&gt;;
+}
+</code></pre>
 
 <h1 id="react_component">React Component</h1>
 
@@ -40,7 +55,7 @@ class View extends React.Component {
     return (
       &lt;div className="WhatTheHell" val={4 + 'wat'}&gt;
         {isClosable && &lt;Button onClose={onClose} /&gt;}
-        &lt;div className={`huh {}} huh`}&gt;foo&lt;/div&gt;
+        &lt;div className={`huh }{}} huh`}&gt;foo&lt;/div&gt;
       &lt;/div&gt;
     );
   }
@@ -78,9 +93,11 @@ import './Main.scss';
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
+import { GoogleMap, useLoadScript as wtf } from '@react-google-maps/api';
+
 import {
   GoogleMap,
-  useLoadScript
+  useLoadScript as wtf
 } from '@react-google-maps/api';
 
 import MAP_STYLES from '../util/map-styles';
@@ -211,6 +228,50 @@ function Main ({ loadingElement }) {
 }
 
 export default Main;
+
+export {
+  Main as default,
+  Foo,
+  Bar as Troz
+};
+
+export default [
+  build('index.js', 'all.bundle.js'),
+  build('single.js', 'single-page.bundle.js')
+];
+</code></pre>
+
+<h1 id="exports">Exports</h1>
+
+<pre><code class="javascript-jsx">
+export function $ (id) {
+  return id.nodeType ? id : document.getElementById(id);
+}
+
+// A port of Prototype's Element#on.
+export function on (element, eventName, selector, handler) {
+  if (typeof selector === 'function' && !handler) {
+    handler = selector;
+    selector = '*';
+  }
+  let wrappedHandler = (event, ...args) => {
+    let closest = event.target.closest(selector);
+    if (!closest) { return; }
+    handler(event, ...args);
+  };
+  element.addEventListener(eventName, wrappedHandler);
+  return () => { element.removeEventListener(eventName, wrappedHandler); };
+}
+
+export function toggleElement (el, bool) {
+  if (typeof bool === 'undefined') { bool = el.style === 'none'; }
+  el.style.display = bool ? '' : 'none';
+}
+
+export function fireEvent (element, eventName, detail = null) {
+  let event = new CustomEvent(eventName, { bubbles: true, detail });
+  return element.dispatchEvent(event);
+}
 </code></pre>
 
 <h1 id="iterators">Iterators</h1>
@@ -296,7 +357,7 @@ class Circle extends Shape {
 }
 
 class View extends React.Component {
-  render () {
+  async render () {
     return null;
   }
 }
@@ -339,6 +400,9 @@ async function zort () {
   });
 }
 
+const foo = async () => {
+  await zort();
+};
 </code></pre>
 
 <h1 id="templates">Template literals</h1>
@@ -494,9 +558,26 @@ var Try = {
   let foo = "this is \" an escaped string.";
 </code></pre>
 
+<h1 id="doc-example">Example from Lexer docs</h1>
+
+<pre><code class="javascript-jsx">function SomeComponent () {
+  return &lt;div class="SomeComponent"&gt;
+    &lt;SomeOtherComponent callback={() =&gt; foo + 1}&gt;
+      You have {numMessages} {numMessages &gt; 1 ? 'messages' : 'message'}.
+      {'I can write &lt;/div&gt; here just to fuck with you'}
+    &lt;/SomeOtherComponent&gt;
+    &lt;div&gt;Lorem ipsum&lt;/div&gt;
+  &lt;/div&gt;;
+}
+</code></pre>
+
 
 <script type="text/javascript">
   Support.setup();
+
+  function sample(html) {
+    document.querySelector('pre > code').innerHTML = html;
+  }
 </script>
 
 </body>

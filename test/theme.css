@@ -33,6 +33,7 @@ code .regexp .escape {
 
 code .interpolation {
   background-color: #333;
+  color: #fff;
 }
 
 code .keyword,
@@ -84,7 +85,8 @@ code .property {
   color: #fc0;
 }
 
-code .parameter {
+code .parameter,
+code .variable-parameter {
   font-style: italic;
 }
 
@@ -117,7 +119,9 @@ code .embedded {
 }
 
 code .embedded .punctuation.embedded-start,
-code .embedded .punctuation.embedded-end {
+code .embedded .punctuation.embedded-end,
+code .embedded .punctuation.interpolation-begin,
+code .embedded .punctuation.interpolation-end {
   color: #fff;
 }
 
@@ -182,4 +186,9 @@ code .entity-class.entity-superclass {
 
 code .debug {
   outline: 1px solid #f00;
+}
+
+code .embedded { color: #fff; }
+code .params .punctuation {
+  color: inherit;
 }

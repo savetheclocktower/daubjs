@@ -9,7 +9,7 @@ In this document I’ll try to capture those challenges and my reasoning around 
 
 Honestly, I’m not sure. Most people seem content to have their strings and keywords highlighted and stop there; they use [Prism][] and get on with their lives. But I highlight a great many tokens, and my brain relies on those cosmetic differences. I wanted my own code samples on my weblog to look as similar as possible to how I see them in my IDE.
 
-I also just wanted to see if I could do it. Fluorescence predated Prism; I was curious to see how it would be different if it were written from the ground up in the ES6 era.
+I also just wanted to see if I could do it. Fluorescence, my previous code-highlighting script, predated Prism; I was curious to see how it would be different if it were written from the ground up in the ES6 era.
 
 Also, I needed a lockdown project.
 
@@ -180,7 +180,7 @@ JavaScript `RegExp`s don’t support positive or negative lookbehind.
 
 Generally speaking, I haven’t needed one. In the few cases where I really need some sort of lookbehind, I’ve been able to work around it through some combination of `index` or `before` callbacks (which are described below).
 
-I could fix it by adopting [XRegExp][], and I may do so in the future. But even with a workaround — and even in the future, when JavaScript will support lookbehind — lookbehinds wouldn’t be able to “see” any characters that were already consumed by a different rule. I can’t think of an easy way around that. Good thing I don’t need lookbehind.
+I could fix it by adopting [XRegExp][], and I may do so in the future. But even with a workaround — and even in the future, when JavaScript will support lookbehind — lookbehinds wouldn’t be able to “see” any characters that were already consumed by a different rule. That would require an architectural reapproach to fix. Good thing I don’t need lookbehind.
 
 ### Not enough data on capture groups
 
@@ -272,7 +272,7 @@ literal-template-string = {
 };
 ```
 
-We’ll return to this example in a bit, but for now, just notice this: two tokens that are meaningful only in a specific context — escaped backticks and template string interpolation delimiters — are defined as meaningful patterns _only_ within their relevant context. Outside of a template string, neither pattern will match.
+We’ll return to this example in a bit, but for now, just notice this: two tokens that are meaningful only in a specific context — escaped backticks and template string interpolation delimiters — are defined as meaningful patterns _only_ within that context. Outside of a template string, neither pattern will match.
 
 Daub grammars do a version of this.
 
@@ -291,6 +291,7 @@ let JS_INSIDE_TEMPLATE_STRINGS = new Grammar({
 });
 
 let JS_MAIN = new Grammar({
+  // ...
   'template-string': {
     pattern: /(`)((?:[^`\\]|\\\\|\\.)*)(`)/,
     captures: {
@@ -348,7 +349,7 @@ let {
 
 This might be ill-advised, but it’s valid ES6.
 
-Instead, let’s write a pattern that will prefer matching too much over too little. To do this, we’ll remove the “ungreedy” quantifier from the last pattern: `/let {([\s\S]+)}\s*(?==)/`. This will match too much:
+Instead, let’s write a pattern that will prefer matching too much over too little. To do this, we’ll remove the “ungreedy” quantifier from the last pattern: `/let {([\s\S]+)}\s*(?==)/`. For our `onLoad` example, this will match too much:
 
 ```
 let {
@@ -406,7 +407,7 @@ function Badge (items) {
 }
 ```
 
-This is contrived, but bear with me. The `items > 1` comparison on line 4 is a problem for Daub; I’m not sure it’s possible in the general case to write a regular expression that would match all of `<Pluralize plural={items > 1}>`.
+This is contrived, but bear with me. The `items > 1` comparison on line 4 is a problem for Daub; I’m not sure it’s possible in the general case to write a regular expression that would match all of `<Pluralize prefix="Your total -->" plural={items > 1}>`.
 
 A more sensible way to approach this would be something like this:
 
@@ -414,13 +415,13 @@ A more sensible way to approach this would be something like this:
 2. Start looking for a `>` to end the opening tag, but also look for other patterns which would signify a shift in parser mode.
 3. Upon reaching `"` just after `prefix=`, switch to a string-parsing lexer mode until further notice.
 4. Parse the string. Look for another `"`, but also look for `\\"`, since an escaped quote would not end the string. Ignore the `>` in the string; string-parsing mode doesn’t give that character special meaning.
-5. Upon reaching `"` at the end of `"Total:"`, revert to JSX-tag-parsing mode.
+5. Upon reaching `"` at the end of `"Your total -->"`, revert to JSX-tag-parsing mode.
 6. Upon reaching `{` just after `plural=`, switch to a JSX-interpolation-parsing lexer mode until further notice.
 7. Parse the interpolation. Ignore the `>` in `items > 1`; it’s not relevant to you in this mode¹. Look for the `}` that will end the interpolation, but also look for `{`, since encountering one would change the meaning of the next `}` you encounter.
 8. Upon reaching `}` at the end of the interpolation, revert to JSX-tag-parsing mode.
 9. Finally encounter the `>` after the interpolation. JSX-tag-parsing mode recognizes it as the end of the tag. Stop.
 
-¹ The `>` token has meaning in JavaScript code, of course. A lexer-only approach to syntax highlighting would recognize that meaning and annotate it along the way, but the lexer I’m describing cares only about finding the JSX tag boundaries.
+(¹ The `>` token has meaning in JavaScript code, of course. A lexer-only approach to syntax highlighting would recognize that meaning and annotate it along the way, but the lexer I’m describing cares only about finding the JSX tag boundaries.)
 
 In fact, that’s roughly how Daub parses JSX. Finding the end of the JSX tag in this example is too complex for a `Grammar` to do on its own, and it’s also too complex for the simple string-based balancing logic used elsewhere. So a lexer is deployed, and however far it reaches into the string is the extent of what the rule should match:
 
@@ -437,20 +438,20 @@ let JSX_TAG_ROOT = new Grammar({
       ([\s\S]*) # middle-of-tag content (will be parsed later)
       (&gt;|>)
     `,
-    index: (text) => {
+    index (text) {
       return balanceByLexer(text, LEXER_TAG_ROOT);
     },
-    replacement: compact(`
-      <span class='jsx'>#{0}</span>
-    `),
-    before: (m) => {
-      m[0] = JSX_CONTENTS.parse(m[0]);
-    }
+    captures: {
+      '0': JSX_CONTENTS
+    },
+    wrapReplacement: true
   }
 });
 ```
 
 I realize I’ve hidden the lexing itself, which is the hard part of this whole thing. But the purpose of this example is to show that (a) the grammar is responsible for matching _at least_ as much as we’ll need here; (b) the lexer is responsible for identifying the true length of the match; (c) the grammar is responsible for taking that matched string and applying highlighting.
+
+(A thoughtfully written lexer could, in fact, be powerful enough to produce a tree that could be _directly_ translated to syntax-highlighted HTML. That is an idea that I’ve explored but not made much progress on yet.)
 
 ### Before and After callbacks: the behind-the-scenes heroes
 
@@ -484,7 +485,7 @@ Where does `context` come in? `Daub.Context` is a thin wrapper class around `Map
 
 Unlike some other languages, JavaScript has no built-in “verbose” or “extended” regular expression syntax in which literal whitespace is ignored and comments are allowed. And because of the constraints we’re under when writing patterns in Daub grammars, annotated patterns are often sorely needed.
 
-But building regular expressions out of strings involves having to double-escape every backslash in your regular expression. `/\}/` becomes `new RegExp("\\}")`. A maching a literal escape sequence like "\t" becomes `/\\t/` in a regex literal, but `new RegExp("\\\\t")` in its string form. I hate it.
+But building regular expressions out of strings involves having to double-escape every backslash in your regular expression. `/\}/` becomes `new RegExp("\\}")`. Matching a literal escape sequence like "\t" becomes `/\\t/` in a regex literal, but `new RegExp("\\\\t")` in its string form. I hate it.
 
 ES6’s tagged template literals offer a way out: they can access the “raw” form of the string in which every backslash is interpreted as a literal backslash, rather than an escape character:
 
@@ -493,7 +494,7 @@ let ordinaryEscapedBrace = /\\}/;
 function re1 (str) {
   return new RegExp(str);
 }
-let annoyingEscapedBrace = reAnnoying`\\\\}`;
+let annoyingEscapedBrace = re1`\\\\}`;
 
 function re2 (str) {
   return RegExp(str.raw[0]);
@@ -592,7 +593,7 @@ Instead of doing this, I could have a separate entry for the grammars:
 ```js
 import * as grammars from './grammars/';
 // Not sure this is valid export syntax, but you get the idea.
-export grammars;
+export default grammars;
 ```
 
 But, again, that’d have to be exposed to consumers as a different import target. I know how to make a single entry point available in both CommonJS and ESM: define both `main` and `module` in your `package.json`, and point them to the different respective files. But, [despite this article](https://levelup.gitconnected.com/code-splitting-for-libraries-bundling-for-npm-with-rollup-1-0-2522c7437697), I haven’t been able to get the same thing to work with multiple entry points.
@@ -609,7 +610,7 @@ In extreme cases, like highlighting files of arbitrary length, you’ll always r
 
 1. Generate the highlighted code on the server side, provided your server environment is JavaScript. The downside here is that you’re sending more markup over the wire, though the extra markup is quite repetitive and probably gzips quite well.
 
-2. Use a web worker to do the highlighting, so that the costly work is performed off of the main browser thread. The downside here is that there’s a noticeable “flash of un-highlighted content” here, even when the highlighting itself is fast, because of the inherent latency in communicating with a web worker asynchronously.
+2. Use a web worker to do the highlighting, so that the costly work is performed off of the main browser thread. The downside here is that there’s a noticeable “flash of un-highlighted content,” even when the highlighting itself is fast, because of the inherent latency in communicating with a web worker asynchronously.
 
 ### Server-side rendering
 

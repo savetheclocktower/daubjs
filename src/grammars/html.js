@@ -1,5 +1,11 @@
 import { Grammar, Utils } from '../daub';
-const { balanceByLexer, compact, VerboseRegExp, wrap } = Utils;
+const {
+  balanceByLexer,
+  balanceAndHighlightByLexer,
+  compact,
+  VerboseRegExp,
+  wrap
+} = Utils;
 import Lexer from '../lexer';
 
 const LEXER_STRING = new Lexer([
@@ -18,7 +24,7 @@ const LEXER_STRING = new Lexer([
     },
     final: true
   }
-]);
+], 'string', { scopes: 'string' });
 
 const LEXER_ATTRIBUTE_VALUE = new Lexer([
   {
@@ -33,27 +39,27 @@ const LEXER_ATTRIBUTE_VALUE = new Lexer([
       lexer: LEXER_STRING
     }
   }
-]);
+], 'attribute-value');
 
 const LEXER_ATTRIBUTE_SEPARATOR = new Lexer([
   {
-    name: `punctuation`,
+    name: 'punctuation',
     pattern: /^=/,
     after: {
       name: 'attribute-value',
       lexer: LEXER_ATTRIBUTE_VALUE
     }
   }
-]);
+], 'attribute-separator');
 
 const LEXER_TAG = new Lexer([
   {
     name: 'tag tag-html',
-    pattern: /^[a-z]+(?=\s)/
+    pattern: /^[a-zA-Z][a-zA-Z-:]*(?=\s|>|&gt;)/
   },
   {
     name: 'attribute-name',
-    pattern: /^\s*(?:\/)?[a-z]+(?=\=)/,
+    pattern: /^\s*(?:\/)?[a-zA-Z][a-zA-Z-:]*(?=\=)/,
     after: {
       name: 'attribute-separator',
       lexer: LEXER_ATTRIBUTE_SEPARATOR
@@ -71,7 +77,7 @@ const LEXER_TAG = new Lexer([
     pattern: /(>|&gt;)/,
     final: true
   }
-]);
+], 'tag');
 
 const LEXER_TAG_START = new Lexer([
   {
@@ -82,7 +88,7 @@ const LEXER_TAG_START = new Lexer([
       lexer: LEXER_TAG
     }
   }
-]);
+], 'tag-start', { scopes: 'element element-opening' });
 
 const ATTRIBUTES = new Grammar({
   string: {
@@ -90,7 +96,7 @@ const ATTRIBUTES = new Grammar({
   },
 
   attribute: {
-    pattern: /\b([a-zA-Z-:]+)(=)/,
+    pattern: /\b([a-zA-Z][a-zA-Z-:]*)(=)/,
     captures: {
       '1': 'attribute-name',
       '2': 'punctuation'
@@ -116,10 +122,6 @@ const ENTITIES = new Grammar({
 });
 
 const MAIN = new Grammar('html', {
-  doctype: {
-    pattern: /(?:<|&lt;)!DOCTYPE([^&]|&[^g]|&g[^t])*(?:>|&gt;)/
-  },
-
   'embedded embedded-javascript': {
     pattern: VerboseRegExp`
       (&lt;|<)(script|SCRIPT) # 1, 2: opening script element
@@ -152,12 +154,12 @@ const MAIN = new Grammar('html', {
   'element element-opening': {
     pattern: VerboseRegExp`
       (<|&lt;)       # 1: opening angle bracket
-      ([a-zA-Z\-:]+)   # 2: any tag name (hyphens are allowed in web component tag names)
+      ([a-zA-Z][a-zA-Z-:]*)   # 2: any tag name (hyphens are allowed in web component tag names)
       (?:
         (\s+)          # 3: space
         ([\s\S]*)      # 4: middle-of-tag content
       )?
-      (.)            # 5: lsat character before closing bracket
+      (.)            # 5: last character before closing bracket
       (&gt;|>)       # 6: closing bracket
     `,
     replacement: compact(`
@@ -168,27 +170,34 @@ const MAIN = new Grammar('html', {
         <span class='punctuation'>#{6}</span>
       </span>
     `),
-    index (match, ...args) {
-      return balanceByLexer(match, LEXER_TAG_START);
+    index (match, context) {
+      // return balanceByLexer(match, LEXER_TAG_START);
+      let { index, highlighted } = balanceAndHighlightByLexer(match, LEXER_TAG_START, context);
+      context.set('lexer-highlighted', highlighted);
+      return index;
     },
-    before (r, context) {
-      // Find the first group before group 5 that has content.
-      let i = 4;
-      while (r[i] === undefined) { i--; }
-      if (r[5]) {
-        if (r[5] === '/') {
-          // The slash should be punctuation.
-          r.name = r.name.replace('element-opening', 'element-self');
-          r[5] = wrap(r[5], 'punctuation');
-        } else {
-          // It isn't a slash, so join it with the group it would've otherwise
-          // been a part of.
-          console.error('joining with group:', i, r[i]);
-          r[i] += r[5];
-          r[5] = '';
-        }
-      }
-      if (r[4]) { r[4] = ATTRIBUTES.parse(r[4], context); }
+    // before (r, context) {
+    //   // Find the first group before group 5 that has content.
+    //   let i = 4;
+    //   while (r[i] === undefined) { i--; }
+    //   if (r[5]) {
+    //     if (r[5] === '/') {
+    //       // The slash should be punctuation.
+    //       r.name = r.name.replace('element-opening', 'element-self');
+    //       r[5] = wrap(r[5], 'punctuation');
+    //     } else {
+    //       // It isn't a slash, so join it with the group it would've otherwise
+    //       // been a part of.
+    //       r[i] += r[5];
+    //       r[5] = '';
+    //     }
+    //   }
+    //   if (r[4]) { r[4] = ATTRIBUTES.parse(r[4], context); }
+    // },
+    after (text, context) {
+      let highlighted = context.get('lexer-highlighted');
+      context.set('lexer-highlighted', false);
+      return highlighted || text;
     }
   },
 
@@ -198,6 +207,27 @@ const MAIN = new Grammar('html', {
       '1': 'punctuation',
       '2': 'tag tag-html',
       '3': 'punctuation'
+    },
+    wrapReplacement: true
+  },
+
+  //  /((?:<|&lt;)!)(DOCTYPE)(\s+)(html)([\s\S]*?)?(>|&gt;)/
+
+  'element element-doctype': {
+    pattern: VerboseRegExp`
+      ((?:<|&lt;)!) # 1: opening punctuation
+      (DOCTYPE)     # 2
+      (\s+)         # 3
+      (html)        # 4
+      ([\s\S]*?)    # 5: optional stuff
+      (>|&gt;)      # 6: closing punctuation
+    `,
+    captures: {
+      '1': 'punctuation',
+      '2': 'keyword special',
+      '4': 'keyword special',
+      '5': ATTRIBUTES,
+      '6': 'punctuation'
     },
     wrapReplacement: true
   },

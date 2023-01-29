@@ -25,6 +25,7 @@
   <li><a href="#python">Python</a></li>
   <li><a href="#javascript">JavaScript</a></li>
   <li><a href="#html">HTML</a></li>
+  <li><a href="#nginx">Nginx</a></li>
 </ul>
 
 <pre><code class="javascript">// Find the next "balanced" occurrence of the token. Searches through the
@@ -428,6 +429,30 @@ def htmlize(str, opts = {})
     str.gsub("\n", "&amp;lt;br&amp;gt;")
   end
 end</code></pre>
+
+<pre id="nginx"><code class="nginx">server {
+  listen 80;      # for IPv4
+  listen [::]:80; # for IPv6
+
+  server_name node-red.home.local;
+  access_log /var/log/nginx/node-red.access.log;
+
+  location / {
+    proxy_pass http://home.local:1880;
+
+    proxy_set_header Host            $host;
+    proxy_set_header X-Real-IP       $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_http_version 1.1;
+
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_cache_bypass 1;
+    proxy_no_cache 1;
+
+    port_in_redirect on;
+  }
+}</code></pre>
 
 <script type="text/javascript">
   Support.setup();

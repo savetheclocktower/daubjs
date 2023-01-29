@@ -5,6 +5,31 @@ import Template, {
 } from './template';
 import { VerboseRegExp } from './utils/verbose-regexp';
 
+function inWebWorker () {
+  // eslint-disable-next-line no-undef
+  return typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+}
+
+// So that I don't have to pull in an `Array#flat` polyfill.
+function flatten (array) {
+  let result = [];
+  (function flat(array) {
+    array.forEach(el => {
+      if (Array.isArray(el)) { flat(el); }
+      else { result.push(el); }
+    });
+  })(array);
+  return result;
+}
+
+function isString (obj) {
+  return typeof obj === 'string';
+}
+
+function wrapArray (obj) {
+  return Array.isArray(obj) ? obj : [obj];
+}
+
 /**
  * Find the next “balanced” occurrence of the token. Searches through the string
  * unit by unit. Whenever the `paired` token is encountered, the stack depth
@@ -88,18 +113,6 @@ function wrap (str, className) {
   return `<span class="${className}">${str}</span>`;
 }
 
-// So that I don't have to pull in an `Array#flat` polyfill.
-function flatten (array) {
-  var result = [];
-  (function flat(array) {
-    array.forEach(el => {
-      if (Array.isArray(el)) { flat(el); }
-      else { result.push(el); }
-    });
-  })(array);
-  return result;
-}
-
 function getLastToken (results) {
   for (let i = results.length - 1; i >= 0; i--) {
     let token = results[i];
@@ -123,20 +136,117 @@ function getLastToken (results) {
  * @returns {number} The index of the final character of the final token that
  *   was matched by the lexer.
  */
-function balanceByLexer (text, lexer) {
-  let results = lexer.run(text);
-  let lastToken = getLastToken(results.tokens);
-  let index = lastToken.index + lastToken.content.length - 1;
-  return index;
+function balanceByLexer (text, lexer, context) {
+  let start, end;
+  start = performance.now();
+  if (performance.mark) {
+    performance.mark('daub-lexer-before');
+  }
+  let results = lexer.run(text, context);
+  end = performance.now();
+  if (performance.mark) {
+    performance.mark('daub-lexer-after');
+    performance.measure('daub-lexer-before', 'daub-lexer-after');
+  }
+  if (!inWebWorker()) {
+    let event = new CustomEvent('daub-lexer-time', { bubbles: true, detail: end - start });
+    document.dispatchEvent(event);
+  }
+  return results.lengthConsumed - 1;
 }
+
+function balanceAndHighlightByLexer (text, lexer, context) {
+  let start, end;
+  start = performance.now();
+  if (performance.mark) {
+    performance.mark('daub-lexer-before');
+  }
+  let results = lexer.run(text, context, { highlight: true });
+  end = performance.now();
+  if (performance.mark) {
+    performance.mark('daub-lexer-after');
+    performance.measure('daub-lexer-before', 'daub-lexer-after');
+  }
+  if (!inWebWorker()) {
+    let event = new CustomEvent('daub-lexer-time', { bubbles: true, detail: end - start });
+    document.dispatchEvent(event);
+  }
+  let highlighted = renderLexerTree(results);
+  return {
+    index: results.lengthConsumed - 1,
+    highlighted
+  };
+}
+
+function flattenTree (tree) {
+  let results = [];
+  if (isString(tree)) { return [tree]; }
+  if (tree.content) {
+    if (isString(tree.content)) {
+      results.push({
+        name: tree.name,
+        scopes: tree.scopes,
+        content: tree.content
+      });
+    } else {
+      if (tree.scopes) {
+        results.push({ open: tree.scopes });
+      }
+      for (let t of wrapArray(tree.content)) {
+        results.push(...flattenTree(t));
+      }
+      if (tree.scopes) {
+        results.push({ close: tree.scopes });
+      }
+    }
+  }
+  return results;
+}
+
+/**
+  Given an array of Tokens,
+ */
+function serializeLexerFragment (tokens) {
+  let result = [];
+  for (let t of tokens) {
+    if (isString(t)) { result.push(t); }
+    else if (t.content) {
+      let serialized = serializeLexerFragment( wrapArray(t.content) );
+      result.push(...serialized);
+    }
+  }
+  return result.join('');
+}
+
+
+function renderLexerTree (obj) {
+  let flat = flattenTree(obj);
+  return flat.map((t) => {
+    let result;
+    console.log('tee:', t);
+    if (isString(t)) { return t; }
+    if (t.open) {
+      result = isString(t.open) ? `<span class="${t.open}">` : '';
+    } else if (t.close) {
+      result = isString(t.close) ? `</span>` : '';
+    } else {
+      let scopes = t.scopes || t.name;
+      result = scopes ? `<span class="${scopes}">${t.content}</span>` : t.content;
+    }
+    return result;
+  }).join('');
+}
+
 
 export {
   balance,
   balanceByLexer,
+  balanceAndHighlightByLexer,
   compact,
   escapeRegExp,
   gsub,
   regExpToString,
+  serializeLexerFragment,
   wrap,
   VerboseRegExp
 };

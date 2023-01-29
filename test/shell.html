@@ -1,17 +1,14 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<html lang="en">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
   <link rel="stylesheet" href="./theme.css"   type="text/css">
   <link rel="stylesheet" href="./support.css" type="text/css">
 
-  <script src="../lib/daub.js"></script>
-  <script src="../lib/grammars/shell.js"></script>
-  <script src="../lib/plugins/whitespace-normalizer.js"></script>
-  <script data-daub-lang="shell" src="./support.umd.js"></script>
+  <script defer src="../dist/daub.umd.js"></script>
+  <script defer src="./support.js"></script>
 
   <title>Daub tests</title>
 
@@ -25,7 +22,7 @@
   <header>
     <h1>Basic example</h1>
   </header>
-  
+
   <article>
     <pre><code class="shell">
 #!/bin/bash
@@ -54,14 +51,17 @@ case "$PLATFORM" in
                     "Previous settings recorded in ~/tmp/crontab-conflict-arch."
         fi
     ;;
+esac
     </code></pre>
-    
+
   </article>
-  
+
 </section>
 
 <script type="text/javascript">
-  Support.setup();
+  document.addEventListener('DOMContentLoaded', function () {
+    Support.setup();
+  });
 </script>
 
 </body>

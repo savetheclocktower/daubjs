@@ -1,6 +1,11 @@
 import { gsub, regExpToString, wrap } from './utils';
 import Template from './template';
 
+function resolve (value) {
+  if (typeof value === 'function') { return value(); }
+  return value;
+}
+
 class ParseError extends Error {
   constructor(message) {
     super(message);
@@ -94,10 +99,7 @@ class Grammar {
         if (rule.captures) {
           for (let i = 0; i < replacements.length; i++) {
             if (!(i in rule.captures)) { continue; }
-            let captureValue = rule.captures[i];
-            if (typeof captureValue === 'function') {
-              captureValue = captureValue();
-            }
+            let captureValue = resolve(rule.captures[i]);
             if (typeof captureValue === 'string') {
               // A string capture just specifies the class name(s) this token
               // should have. We'll wrap it in a `span` tag.

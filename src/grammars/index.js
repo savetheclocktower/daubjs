@@ -6,6 +6,7 @@ import Python from './python';
 import Ruby from './ruby';
 import SCSS from './scss';
 import Shell from './shell';
+import Nginx from './nginx';
 
 export {
   Arduino,
@@ -14,5 +15,6 @@ export {
   Python,
   Ruby,
   SCSS,
-  Shell
+  Shell,
+  Nginx
 };

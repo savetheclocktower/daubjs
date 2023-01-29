@@ -32,7 +32,7 @@ class LexerError extends Error {
  * Tokens are created automatically by lexers.
  */
 class Token {
-  constructor (name, content, index, lengthConsumed) {
+  constructor (name, content, index, lengthConsumed, options = {}) {
     /**
      * The name of the token. Determined by the name of the lexer rule that
      * created this token.
@@ -46,15 +46,16 @@ class Token {
      */
     this.content = content;
 
-    // “Length consumed” refers to the number of characters that have already
-    // been processed in the original source string. All our indices should be
-    // relative to this value.
-
     /**
      * The index of the original string at which this token matched.
      * @type {number}
      */
+    // “Length consumed” refers to the number of characters that have already
+    // been processed in the original source string. All our indices should be
+    // relative to this value.
     this.index = lengthConsumed + index;
+
+    this.scopes = options.scopes;
   }
 }
 
@@ -68,11 +69,14 @@ class Token {
  *   debugging.
  */
 class Lexer {
-  constructor (rules, name = '') {
+  constructor (rules, name = '', options = {}) {
     this.rules = rules;
     // A lexer can optionally have a name; this is mainly for debugging
     // purposes.
     this.name = name;
+    this.scopes = options.scopes;
+    this.silent = !!options.silent;
+    this.highlight = options.highlight;
   }
 
   /**
@@ -118,7 +122,7 @@ class Lexer {
    *   `results` key refers to an array of `Token`s and raw strings. The `text`
    *   key contains whatever fragment of the string could not be parsed.
    */
-  run (text, context = null, { startIndex = 0 } = {}) {
+  run (text, context = null, { startIndex = 0, scopes = null, highlight = false } = {}) {
     let isRoot = context === null;
     let tokens = [];
     if (!context) {
@@ -163,11 +167,11 @@ class Lexer {
 
       if (!match) {
         // Failing to match anything will cause the Lexer to return and report its results.
-        console.debug('No match!');
+        console.debug(this.name, 'No match!');
         // console.groupEnd();
         break;
       } else {
-        console.debug('Match:', rule.name, match[0], match, rule);
+        console.debug(this.name, 'Match:', rule.name, match[0], match, rule);
         console.debug(' found at global index:', match.index + lengthConsumed);
       }
 
@@ -207,6 +211,20 @@ class Lexer {
       let ruleIsFinal = determineIfFinal(rule, context);
       let shouldSkipSubRules = ruleIsFinal && rule.skipSubRulesIfFinal;
 
+      if (rule.trim) {
+        if (rule.raw) {
+          throw new LexerError(`Options "trim" and "raw" cannot coexist on a rule!`);
+        }
+        let originalMatch = match[0];
+        // If `trim: true` is present, the rule wants us to strip leading space
+        // — or, rather, pull it out of the match and prepend it as a raw token.
+        let leadingMatch = /^[\n\s\t]+/.exec(originalMatch);
+        if (leadingMatch) {
+          tokens.push(leadingMatch[0]);
+          match[0] = match[0].slice(leadingMatch[0].length);
+          lengthConsumed += leadingMatch[0].length;
+        }
+      }
       if (rule.raw) {
         // Sometimes we write rules to match a string just to prevent it from
         // being matched by another rule. In these cases, we can use `raw:
@@ -231,7 +249,7 @@ class Lexer {
         //
         // The difference between `inside` and `after` is whether the rule that
         // prompted the sub-lexing is placed _within_ that Token (as the first
-        // item in its `content` array) or just _before_ that token.
+        // item in its `content` array) or just _after_ that token.
         //
         // Any `context` set inside your lexer will also be available to
         // sub-lexers. It's up to the sub-lexer to decide when to stop parsing,
@@ -255,7 +273,8 @@ class Lexer {
           rule.name,
           match[0],
           matchIndex,
-          lengthConsumed
+          lengthConsumed,
+          { scopes: rule.scopes || rule.name }
         );
 
         let subLexerStartIndex = lengthConsumed + match[0].length - matchIndex;
@@ -273,7 +292,9 @@ class Lexer {
 
         // To ensure accurate `index` values on Tokens, we need to tell the
         // sub-lexer how much of the string we've already consumed.
-        let lexerResult = lexer.run(text, context, { startIndex: subLexerStartIndex });
+        let lexerResult = lexer.run(text, context, {
+          startIndex: subLexerStartIndex
+        });
 
         console.debug('Lexer END', lexerName, 'consumed:', lexerResult.lengthConsumed);
 
@@ -284,7 +305,10 @@ class Lexer {
           lexerName,
           subTokens,
           matchIndex,
-          lengthConsumed
+          lengthConsumed,
+          {
+            scopes: lexerResult.scopes
+          }
         );
 
         tokens.push(token);
@@ -292,17 +316,20 @@ class Lexer {
         lengthConsumed = lexerResult.lengthConsumed;
         text = lexerResult.text;
       } else {
+        // Ordinary rule with no `inside` or `after` property.
         let token = new Token(
           rule.name,
           match[0],
           matchIndex,
-          lengthConsumed
+          lengthConsumed,
+          { scopes: rule.scopes || rule.name }
         );
         tokens.push(token);
         lengthConsumed += match[0].length;
       }
+
       if (ruleIsFinal) {
-        console.debug('Last rule! Done.');
+        console.debug(this.name, 'Last rule! Done.');
         // console.groupEnd();
         break;
       }
@@ -313,7 +340,7 @@ class Lexer {
       // prevent us from using patterns that end up consuming zero characters.
       // In the future I might want this to behave differently.
       if (text === lastText) {
-        console.debug(`No further matches! Done.`);
+        console.debug(this.name, `No further matches! Done.`);
         // console.groupEnd();
         break;
       }
@@ -321,10 +348,17 @@ class Lexer {
       // console.groupEnd();
     } // end the gigantic `while` loop.
 
+    if (this.highlight && this.highlight) {
+      tokens = this.highlight(tokens, context);
+    }
+
     // Lexer#run returns three values: an array of tokens, the leftover text
     // that could not be parsed (if any), and the number of characters that
     // were able to be parsed.
     return {
+      name: this.name,
+      scopes: this.scopes,
+      content: tokens,
       tokens,
       text,
       lengthConsumed
