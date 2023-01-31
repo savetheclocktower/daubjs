@@ -1,6 +1,6 @@
 /* eslint-env node */
 
-const { VerboseRegExp } = require('../src/utils/verbose-regexp');
+import { VerboseRegExp } from '../src/utils/verbose-regexp.js';
 
 // A very small Babel plugin that invokes `VerboseRegExp` at compile time
 // instead of at runtime. This is pretty silly, but it ends up saving me ~2k
@@ -51,4 +51,4 @@ function handleReference (path, state, babel) {
   );
 }
 
-module.exports = verboseRegExpPlugin;
+export default verboseRegExpPlugin;

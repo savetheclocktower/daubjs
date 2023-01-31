@@ -327,3 +327,5 @@ Without using the experimental lexer rendering, highlighting this involves _fift
 * One each for the four interpolation blocks, because finding the bounds of the interpolation is a task that requires a lexer.
 
 All calls after the very first one are redundant, since the initial lexing run identified _all_ these regions. To be able to convert the lexer parsing tree into HTML, asking for help from the grammar when necessary, means that we can cut our usage of lexers in half. _That’s_ probably the major performance opportunity.
+
+On the JSX test page, with Chrome simulating a mid-tier mobile device, the usage of lexer rendering reduces the number of lexer usages from 76 to _15_, and the total rendering time from ~172ms to ~110ms.

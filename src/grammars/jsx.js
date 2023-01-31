@@ -1,16 +1,15 @@
 /* eslint-disable no-useless-escape */
-import { Utils, Grammar } from '../daub';
-import Lexer from '../lexer';
-const {
+import Grammar from '#internal/grammar';
+import {
   balance,
   balanceByLexer,
   balanceAndHighlightByLexer,
   serializeLexerFragment,
   compact,
-  renderTree,
   wrap,
   VerboseRegExp
-} = Utils;
+} from '#internal/utils';
+import Lexer from '#internal/lexer';
 
 // TODO:
 // * Generators.

@@ -1,4 +1,4 @@
-import Context from './context';
+import Context from '#internal/context';
 
 function resolve (value) {
   if (typeof value === 'function') { return value(); }

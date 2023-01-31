@@ -5,8 +5,7 @@ import resolve from '@rollup/plugin-node-resolve';
 import cjs from '@rollup/plugin-commonjs';
 import babel from '@rollup/plugin-babel';
 import strip from '@rollup/plugin-strip';
-
-import { terser } from 'rollup-plugin-terser';
+import terser from '@rollup/plugin-terser';
 
 import PACKAGE from './package.json';
 
@@ -48,7 +47,7 @@ export default [
       format: 'umd'
     },
     plugins: [
-      resolve(),
+      resolve({ exportConditions: ['node'] }),
       cjs(),
       babel({
         // The docs say to use 'runtime' here, that it removes duplication, but
@@ -61,36 +60,16 @@ export default [
     ]
   },
 
-  // Web worker.
+  // Web worker UMD.
   {
     input: 'src/worker.js',
     output: {
       name: 'daub',
-      file: 'dist/daub.worker.umd.js',
+      file: 'dist/daub.worker.umd.cjs',
       format: 'umd'
     },
     plugins: [
-      resolve(),
-      cjs(),
-      babel({
-        // The docs say to use 'runtime' here, that it removes duplication, but
-        // it caused a bunch of headaches and still made my files larger.
-        babelHelpers: 'bundled',
-        // Only transpile our source code.
-        exclude: 'node_modules/**',
-      }),
-      ...extraPlugins
-    ]
-  },
-
-  {
-    input: './src/all.js',
-    output: [
-      { file: PACKAGE.module, format: 'esm' },
-      { file: PACKAGE.main,   format: 'cjs' }
-    ],
-    plugins: [
-      resolve(),
+      resolve({ exportConditions: ['node'] }),
       cjs(),
       babel({
         // The docs say to use 'runtime' here, that it removes duplication, but
@@ -102,5 +81,4 @@ export default [
       ...extraPlugins
     ]
   }
-
 ];

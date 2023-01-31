@@ -1,12 +1,13 @@
-import { Grammar, Utils } from '../daub';
-const {
+
+import Grammar from '#internal/grammar';
+import {
   balanceByLexer,
   balanceAndHighlightByLexer,
   compact,
   VerboseRegExp,
   wrap
-} = Utils;
-import Lexer from '../lexer';
+} from '#internal/utils';
+import Lexer from '#internal/lexer';
 
 const LEXER_STRING = new Lexer([
   {

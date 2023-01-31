@@ -1,5 +1,5 @@
-import { Grammar, Utils } from '../daub';
-const { balance, wrap, compact, VerboseRegExp } = Utils;
+import Grammar from '#internal/grammar';
+import { balance, wrap, compact, VerboseRegExp } from '#internal/utils';
 
 const STRINGS = new Grammar({
   interpolation: {

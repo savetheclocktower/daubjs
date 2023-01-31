@@ -1,8 +1,7 @@
 /* eslint-env commonjs */
 
-// This file uses CommonJS so that we can import it from Node. `VerboseRegExp`s
-// get transpiled to regular expression literals during builds in the interests
-// of file size.
+// `VerboseRegExp`s get transpiled to regular expression literals during builds
+// in the interests of file size.
 
 // Rollup should still do the right thing so that VerboseRegExp is available to
 // custom grammars as a runtime import.
@@ -29,7 +28,7 @@ function trimCommentsFromLine (line) {
 // Escape sequences _do not_ need to be double-escaped, with one exception:
 // capture group backreferences like \5 need to be written as \\5, because JS
 // doesn't understand that syntax outside of a literal RegExp.
-function VerboseRegExp (str) {
+export function VerboseRegExp (str) {
   let raw = str.raw[0];
 
   let pattern = raw.split(/\n/)
@@ -46,7 +45,3 @@ function VerboseRegExp (str) {
   let result = new RegExp(pattern);
   return result;
 }
-
-module.exports = {
-  VerboseRegExp
-};

@@ -12,6 +12,28 @@ But why did I write it instead of just using Prism? Because I don’t like the b
 
 ## Usage
 
+### Import Daub
+
+There are several ways to use Daub in a browser environment.
+
+#### Simplest: the bare UMD file
+
+The file residing at `dist/daub.umd.cjs` is self-contained and can be imported into any environment, including the browser. It’s also what gets returned if you import/require `daub/umd`.
+
+The downside of this approach is that you get the maximal bundle, including all existing grammars and plugins.
+
+#### Moderately complex: import pieces as part of your bundling strategy
+
+If you bundle your JavaScript with a tool like Rollup, you can import only the pieces you need; consult `examples/simple.js` for a typical usage.
+
+This allows you to import only the parts you want, though you can replicate the all-in-one bundle by importing `daub/all`.
+
+If you are delivering bundled ES6 to the browser, this should work just fine. If you are transpiling your ES6 to ES5, you must ensure that Babel is configured not to exclude `node_modules/**` from transpilation. If this is too hard, you can instead import `daub/umd`, which does not require transpilation.
+
+#### Unknown: import maps
+
+I’ve not tried to load Daub with either native import maps (not yet supported in all browsers) or the [SystemJS](https://github.com/systemjs/systemjs) equivalent, so I don’t know how complex this would be, but I think it’s possible. Let me know if you’ve pulled it off.
+
 ### Annotate your `code` elements with class names
 
 To highlight a block of code, you must first give its `code` element a class name equal to the name of the grammar you've defined. Our goal is make it so that HTML like this:
@@ -81,13 +103,13 @@ And so on. Consult `test/theme.css` for a sample theme.
 
 ## How does it work?
 
-Regular expressions and voodoo.
+Regular expressions and voodoo, plus a lexing strategy for complex syntax constructs.
 
-I've iterated on this approach to syntax highlighting because I find it easy to reason about and write new grammars for, and because it’s quite fast.
+I've iterated on this approach to syntax highlighting because I find it easy to reason about and write new grammars for, and because it’s quite fast. It borrows quite a bit from TextMate grammars, but does some extra stuff to work around the limitations of the JavaScript regular expression engine.
 
 A grammar consists of a series of patterns, each with its own replacement. When parsing text, a grammar consolidates all those patterns into _one_ gigantic regular expression and iteratively matches it against the target string. The first match gets extracted from the string, replaced, and added to the destination string. This process repeats until the entire target string is consumed.
 
-In certain places, this approach needs outside help in order to identify how much of the string needs to be consumed at one time. Daub uses a couple of different strategies to deliver that help, as is explained in more detail below.
+In certain places, this approach needs outside help in order to identify how much of the string needs to be consumed at one time. Daub uses a couple of different strategies to deliver that help. [See DESIGN.md for details](./DESIGN.md).
 
 ## How do I write my own grammar?
 
@@ -284,8 +306,8 @@ Yeah, the same `captures` shorthand we used earlier. When a capture group refers
 This next example is more elaborate: it allows us to highlight the default values in function parameters.
 
 ```js
-import { Grammar, Utils } from 'daub';
-let { VerboseRegExp } = Utils;
+import { Grammar } from 'daub';
+import { VerboseRegExp } from 'daub/utils';
 
 // Define a grammar for parsing "values" -- i.e., things that can be on the
 // right side of an equals sign, or used as default parameters in method
@@ -672,10 +694,6 @@ Properties on `event.detail`:
 ## Plugins
 
 You could use these events pretty creatively, if you like. Daub exports a `PLUGINS` object with some examples; see `PLUGINS.md` for documentation.
-
-## ES6
-
-Daub is written in ES6 and uses ES6 imports, so you'll need to transform it one way or another before it runs in a browser or in Node. The `build` command uses [Rollup][] to generate an all-inclusive package for the browser, but many will prefer to grab the source files so that they can integrate them into their existing transpilation-and-bundling toolchain.
 
 
 [Fluorescence]: https://github.com/savetheclocktower/fluorescence/

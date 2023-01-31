@@ -1,5 +1,5 @@
-import Context from './context';
-import Grammar from './grammar';
+import Context from '#internal/context';
+import Grammar from '#internal/grammar';
 
 // TODO: I've got a proof-of-concept for doing the grunt work of highlighting
 // inside a web worker. It's easy enough to write a `Highlighter` analog that

@@ -3,17 +3,16 @@
 // recent browser doesn't support something, I should be able to write a pure
 // polyfill for it or else adopt another approach to work around the problem.
 
-import * as Utils from './utils';
-import Context from './context';
-import Grammar from './grammar';
-import Highlighter, { AsyncHighlighter } from './highlighter';
-import Lexer from './lexer';
+import * as Utils from '#internal/utils';
+import Context from '#internal/context';
+import Grammar from '#internal/grammar';
+import Highlighter, { AsyncHighlighter } from '#internal/highlighter';
+import Lexer from '#internal/lexer';
 
 export {
   AsyncHighlighter,
   Context,
   Grammar,
   Highlighter,
-  Lexer,
-  Utils
+  Lexer
 };

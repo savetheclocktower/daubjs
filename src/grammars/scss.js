@@ -1,5 +1,5 @@
-import { Utils, Grammar } from '../daub';
-const { balance, compact, VerboseRegExp } = Utils;
+import Grammar from '#internal/grammar';
+import { balance, compact, VerboseRegExp } from '#internal/utils';
 
 let findFirstThatIsNotPrecededBy = (token, notToken, string, startIndex) => {
   let lastChar;

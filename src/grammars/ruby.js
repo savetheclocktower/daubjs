@@ -1,6 +1,5 @@
-import { Utils, Grammar } from '../daub';
-
-const { balance, compact, VerboseRegExp, wrap } = Utils;
+import Grammar from '#internal/grammar';
+import { balance, compact, VerboseRegExp, wrap } from '#internal/utils';
 
 function includes (str, pattern) {
   return str.indexOf(pattern) > -1;

@@ -1,6 +1,6 @@
 
-import { Grammar, Utils } from '../daub';
-const { balance, compact, VerboseRegExp } = Utils;
+import Grammar from '#internal/grammar';
+import { balance, compact, VerboseRegExp } from '#internal/utils';
 
 let PARAMETERS = new Grammar({
   'meta: parameter': {

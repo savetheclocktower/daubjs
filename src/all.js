@@ -1,14 +1,13 @@
-
 import {
   Context,
   Grammar,
   AsyncHighlighter,
   Highlighter,
-  Lexer,
-  Utils
-} from './daub';
+  Lexer
+} from '#internal/daub';
 
-import * as GRAMMARS from './grammars';
+import * as Utils from '#internal/utils';
+import * as GRAMMARS from '#internal/grammars/index';
 
 // import Arduino from './grammars/arduino';
 // import HTML from './grammars/html';
@@ -30,8 +29,8 @@ import * as GRAMMARS from './grammars';
 //   Shell
 // };
 
-import WhitespaceNormalizer from './plugins/whitespace-normalizer';
-import LineHighlighter from './plugins/line-highlighter';
+import WhitespaceNormalizer from '#internal/plugins/whitespace-normalizer';
+import LineHighlighter from '#internal/plugins/line-highlighter';
 
 const PLUGINS = {
   WhitespaceNormalizer,

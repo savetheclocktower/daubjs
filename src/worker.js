@@ -1,9 +1,9 @@
 /* eslint-env worker */
-import Grammar from './grammar';
-import Context from './context';
-import Logger from './logger';
+import Grammar from '#internal/grammar';
+import Context from '#internal/context';
+import Logger from '#internal/logger';
 
-import * as GRAMMARS from './grammars';
+import * as GRAMMARS from '#internal/grammars/index';
 
 const LOGGER = new Logger('worker');
 

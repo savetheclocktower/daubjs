@@ -1,7 +1,13 @@
 /* eslint-disable no-useless-escape */
-import { Utils, Grammar } from '../daub';
-const { balance, compact, wrap, VerboseRegExp } = Utils;
 
+import Grammar from '#internal/grammar';
+import {
+  balance,
+  compact,
+  VerboseRegExp,
+  wrap
+} from '#internal/utils';
+import Lexer from '#internal/lexer';
 
 // TODO:
 // * Generators

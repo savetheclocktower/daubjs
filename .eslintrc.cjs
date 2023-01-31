@@ -1,3 +1,4 @@
+/* global module */
 module.exports = {
   "env": {
     "browser": true,
@@ -30,12 +31,13 @@ module.exports = {
     "no-useless-escape": "off",
     "no-cond-assign": "off",
     "no-unused-vars": "off",
-    "no-console": [
-      "warn",
-      {
-        "allow": ["debug", "error"]
-      }
-    ],
+    "no-console": "off",
+    // "no-console": [
+    //   "warn",
+    //   {
+    //     "allow": ["debug", "error"]
+    //   }
+    // ],
 
     'unicorn/custom-error-definition': 'error',
     'unicorn/no-new-buffer': 'error',

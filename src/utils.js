@@ -2,8 +2,8 @@ import Template, {
   escapeRegExp,
   gsub,
   regExpToString
-} from './template';
-import { VerboseRegExp } from './utils/verbose-regexp';
+} from './template.js';
+import { VerboseRegExp } from './utils/verbose-regexp.js';
 
 function inWebWorker () {
   // eslint-disable-next-line no-undef

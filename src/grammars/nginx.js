@@ -1,5 +1,5 @@
-import { Grammar, Utils } from '../daub';
-const { compact } = Utils;
+import Grammar from '#internal/grammar';
+import { compact } from '#internal/utils';
 
 const INSIDE_STRINGS = new Grammar({
   variable: {

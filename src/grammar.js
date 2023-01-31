@@ -1,5 +1,5 @@
-import { gsub, regExpToString, wrap } from './utils';
-import Template from './template';
+import { gsub, regExpToString, wrap } from '#internal/utils';
+import Template from '#internal/template';
 
 function resolve (value) {
   if (typeof value === 'function') { return value(); }
