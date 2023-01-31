@@ -44,8 +44,7 @@
     "babel-eslint": "^10.0.2",
     "eslint": "^8.7.0",
     "eslint-plugin-unicorn": "^10.0.0",
-    "rollup": "^3.12.0",
-    "rollup-plugin-terser": "^7.0.2"
+    "rollup": "^3.12.0"
   },
   "scripts": {
     "build": "rollup -c",
