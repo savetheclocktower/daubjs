@@ -1,0 +1,258 @@
+.post__body,
+.post--image__description {
+  @if $async-font-loading {
+    @include hide-until('source-sans-pro-loaded');
+  }
+}
+
+%vertically-centered-icon {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+%square {
+  // This technique forces an element to be perfectly square. Percentages for
+  // padding-top/bottom are, for whatever reason, specified as being relative
+  // to the _width_ of the element. So we can use them to enforce an aspect
+  // ratio.
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  &:before {
+    content: '';
+    display: block;
+    padding-bottom: 100%;
+  }
+}
+
+@import "modules/post_icons";
+
+// * We want to do BEM-style class naming, but we do not want to have to
+//   apply every block name twice. `class="post post--article"` is gross.
+// * So `post--article` should extend `post`, but all the other class names
+//   for that block will also need to extend their cousins. This can get
+//   tedious.
+// * This mixin does the gruntwork.
+$post-elements: 'meta', 'icons', 'group', 'title', 'body', 'gutter', 'data',
+  'icon--post-type', 'icon--comment', 'icon--flickr', 'read-more';
+
+@mixin post {
+  @extend .post;
+
+  @each $el in $post-elements {
+    &__#{$el} { @extend .post__#{$el} !optional; }
+  }
+}
+
+.post {
+  @include clearfix;
+  @include margin-trailer(1.5);
+  width: 100%;
+  max-width: 100%;
+
+  .b-single & {
+    @include margin-trailer(0.5);
+  }
+
+  &__meta {
+    @include clearfix;
+    position: relative;
+    margin-bottom: rhythm(0.5);
+    @include wider {
+      @include span(2 of 16);
+      margin-bottom: 0;
+      margin-left: span(3 of 16 wide);
+      display: block;
+      float: left;
+    }
+    text-align: center;
+
+    @include widest {
+      text-align: right;
+    }
+  }
+
+
+  // The icons display as a row on the narrowest breakpoint. On wider
+  // breakpoints they display in a column.
+  //
+  // Once we hit the widest breakpoint, we give the icons a fixed pixel width
+  // instead of a fluid width. Otherwise they’d get crazy huge on wide
+  // windows. This also means that the font-size has to be a fixed pixel size
+  // so that the icons don’t outgrow their containers.
+  &__icons {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    box-sizing: border-box;
+
+    @include wider {
+      // Violate the grid here because the icons look too tiny otherwise.
+      @include span(1.25 of 2 last);
+      flex-direction: column;
+
+      & :not(:last-child) { //)
+        margin-bottom: 5px;
+      }
+
+      & :only-child {
+        margin-bottom: 0;
+      }
+    }
+
+    @include widest {
+      // Once we get to the widest breakpoint, switch to a fixed width so we
+      // can enforce a maximum size on the icons.
+      width: 50px;
+      margin-left: auto;
+    }
+  }
+
+  &__icon--post-type,
+  &__icon--comment {
+    @include widest {
+      // For some reason, `min-width` controls here instead of `max-width`.
+      min-width: 100%;
+      // The icons should be flush with the right edge of the column so that
+      // they don’t get farther away from the text as the window widens.
+      margin-left: auto;
+    }
+  }
+
+  &__icon--post-type {
+    @include post-icon($color-tertiary);
+    font-size: 4vw;
+
+    @include narrow {
+      font-size: 23px;
+    }
+
+    @include wider {
+      font-size: 2.25vw;
+    }
+
+    @include widest {
+      font-size: 25px;
+    }
+  }
+
+  &__icon--comment {
+    @include display;
+    @include post-icon($color-fg);
+    @include adjust-font-size-to(13px);
+    font-weight: 600;
+
+    a {
+      @include icon(comment);
+      white-space: nowrap;
+      font-size: 22px;
+      top: calc(50% + 2px);
+
+      @include narrow {
+        font-size: 18px;
+      }
+
+      @include wider {
+        @include span(1 of 2 last);
+        min-width: 100%;
+        max-width: 100%;
+        font-size: calc(2.5vw - 5px);
+      }
+
+      @include widest {
+        font-size: 24px;
+      }
+
+      // @include widest {
+      //   font-size: 1.5vw;
+      // }
+
+      &:before {
+        font-size: 80%;
+        padding-right: 2px;
+        position: relative;
+        top: -2px;
+      }
+    }
+  }
+
+  &__icon--flickr {
+    @include post-icon( adjust-hue($color-tertiary, 110deg) );
+
+    a {
+      @include icon(flickr);
+      top: calc(50% + 1px);
+
+
+      @include wider {
+        &:before { font-size: 1.6vw; }
+      }
+    }
+  }
+
+  &__gutter {
+    @include wider {
+      @include span(3 of 16);
+      display: block;
+      margin-right: span(1);
+    }
+  }
+
+  &__group {
+    body.b-single & {
+      border-bottom: 1px solid rgba($color-fg, 0.15);
+      @include padding-trailer(0.5);
+    }
+
+    @include wider {
+      @include span(10 of 16 last);
+      margin-right: span(1 of 16 wide);
+    }
+  }
+
+  &__body {
+    box-sizing: border-box;
+    max-width: 100vw;
+    img {
+      display: block;
+    }
+  }
+
+  &__read-more {
+    @include margin-leader(-0.25);
+    @include margin-trailer(0.75);
+    @include plain-links;
+    border-bottom-width: 1px;
+    font-weight: 600;
+
+    @include wider {
+      @include span(3 of 10 last);
+    }
+
+    a {
+      @include button-styles;
+      @include display;
+      position: relative;
+      font-size: 14px;
+      display: block;
+      text-align: center;
+      letter-spacing: -0.5px;
+      opacity: 0.5;
+      transition: opacity 0.3s;
+      border-bottom-width: 1px !important;
+      &:hover { opacity: 1; }
+    }
+
+    span {
+      @extend %vertically-centered;
+    }
+
+  }
+
+}

@@ -1,0 +1,27 @@
+// FUNCTIONS
+// =========
+
+// Turns (e.g.) '#003366' into '%23003366' (unquoted). Needed because hex
+// colors need to be URL-escaped in SVG data URLs or else Firefox bails on
+// the whole thing.
+@function url-escape-hex-color($color) {
+  @if is-hex-color($color) {
+    $str: inspect($color);
+    $str: str-slice($str, 2);
+    @return '%23' + unquote($str);
+  }
+  @return $color;
+}
+
+@function strip-units($value) {
+  @return $value / ($value * 0 + 1);
+}
+
+@function is-hex-color($color) {
+  @if type-of($color) == color {
+    @if str-slice(inspect($color), 1, 1) == '#' {
+      @return true;
+    }
+  }
+  @return false;
+}

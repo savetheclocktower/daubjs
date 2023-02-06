@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Daub tests</title>
+
+    <link rel="stylesheet" href="/static/support.css" type="text/css">
+  </head>
+  <body>
+
+    <ul id="menu">
+      <%_ for (let name of GRAMMARS) { _%>
+        <li>
+          <a href="/<%= name _%>"><%= name _%></a>
+        </li>
+      <%_ } _%>
+    </ul>
+  </body>
+</html>

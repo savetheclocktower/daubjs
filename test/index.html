@@ -1,7 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
@@ -11,9 +9,7 @@
   <script src="../dist/daub.umd.cjs"></script>
   <script src="./support.js"></script>
 
-
   <title>Daub tests</title>
-
 </head>
 
 <body>
@@ -273,7 +269,7 @@ var Try = {
 
     // What is this
 
-    for (var i = 0, length = /* ahaha */ arguments.length; i &amp;lt; length; i++) {
+    for (var i = 0, length = /* ahaha */ arguments.length; i &lt; length; i++) {
       var lambda = arguments[i];
       try {
         returnValue = lambda();
@@ -288,17 +284,17 @@ var Try = {
   }
 };</code></pre>
 
-<pre id="html"><code class="html">&amp;lt;img src="foo.gif" width="1000" height="4" alt="Lorem ipsum dolor." /&amp;gt;
-&amp;lt;ul&amp;gt;
-  &amp;lt;li&amp;gt;Lorem ipsum dolor sit amet. width="1000" (that was a test)&amp;lt;/li&amp;gt;
+<pre id="html"><code class="html">&lt;img src="foo.gif" width="1000" height="4" alt="Lorem ipsum dolor." /&gt;
+&lt;ul&gt;
+  &lt;li&gt;Lorem ipsum dolor sit amet. width="1000" (that was a test)&lt;/li&gt;
 
-  &amp;lt;script&amp;gt;var foo = 'bar';&amp;lt;/script&amp;gt;
+  &lt;script&gt;var foo = 'bar';&lt;/script&gt;
 
-  &amp;lt;script type="text/javascript"&amp;gt;var foo = '\\bar';&amp;lt;/script&amp;gt;
+  &lt;script type="text/javascript"&gt;var foo = '\\bar';&lt;/script&gt;
 
-  &amp;lt;SCRIPT type="text/javascript"&amp;gt;var foo = '\\bar';&amp;lt;/script&amp;gt;
+  &lt;SCRIPT type="text/javascript"&gt;var foo = '\\bar';&lt;/script&gt;
 
-  &amp;lt;script&amp;gt;
+  &lt;script&gt;
     for (var i = 0, length = arguments.length; i < length; i++) {
       var lambda = arguments[i];
       try {
@@ -306,16 +302,18 @@ var Try = {
         break;
       } catch (e) { }
     }
-  &amp;lt;/script&amp;gt;
+  &lt;/script&gt;
 
-&amp;lt;/ul&amp;gt;</code></pre>
+&lt;/ul&gt;</code></pre>
 
-<pre id="ruby"><code class="ruby">
+<pre id="ruby" data-only><code class="ruby">
+format =~ /\b(lorem(?:\sipsum(\sdolo(r)?)))/
+
 UH_OH = %Q{
   this { \{ #{thing + 1} will be a \} problem. }
 }
 
-class Spot &amp;lt; ActiveRecord::Base
+class Spot &lt; ActiveRecord::Base
   def to_public_json(format=:full, options={:foo => "bar", :baz => :thud, :zort => 5_000, :troz => { :wat => 'this is ridiculous' } }, nil_by_default=nil, false_by_default=false)
     hash = {
       :message    => self.message,
@@ -342,7 +340,7 @@ class Spot &amp;lt; ActiveRecord::Base
     foo.map { |id| "/spots/#{id}" }
 
     troz.map do |bar, baz|
-      zort &amp;lt;&amp;lt; baz
+      zort &lt;&lt; baz
     end
 
     hash
@@ -391,7 +389,7 @@ class Spot &amp;lt; ActiveRecord::Base
     "bar"
   end
 
-  @heredoc = &amp;lt;&amp;lt;-WTF
+  @heredoc = &lt;&lt;-WTF
   Lorem ipsum dolor sit amet, consectetur adipisicing elit,\n sed do eiusmod tempor, #{other_latin} magna aliqua.
   WTF
 
@@ -418,15 +416,15 @@ module Foo
 end</code></pre>
 
 <pre><code class="ruby"># Make string suitable for display as HTML, preserve spaces. Set :no_newline_after_br => true
-# to cause “\n” to be substituted by “&amp;lt;br&amp;gt;” instead of “&amp;lt;br&amp;gt;\n”
+# to cause “\n” to be substituted by “&lt;br&gt;” instead of “&lt;br&gt;\n”
 def htmlize(str, opts = {})
-  str = str.to_s.gsub("&amp;", "&amp;amp;").gsub("&amp;lt;", "&amp;lt;")
-  str = str.gsub(/\t+/, '&amp;lt;span style=&amp;quot;white-space:pre;&amp;quot;&amp;gt;\0&amp;lt;/span&amp;gt;')
+  str = str.to_s.gsub("&amp;", "&amp;amp;").gsub("&lt;", "&lt;")
+  str = str.gsub(/\t+/, '&lt;span style=&amp;quot;white-space:pre;&amp;quot;&gt;\0&lt;/span&gt;')
   str = str.gsub(/(^ +)|( )( +)/) { "#$2#{'&amp;nbsp;' * ($1 || $3).length}" }
   if opts[:no_newline_after_br].nil?
-    str.gsub("\n", "&amp;lt;br&amp;gt;\n")
+    str.gsub("\n", "&lt;br&gt;\n")
   else
-    str.gsub("\n", "&amp;lt;br&amp;gt;")
+    str.gsub("\n", "&lt;br&gt;")
   end
 end</code></pre>
 

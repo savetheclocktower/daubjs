@@ -1,0 +1,192 @@
+// MIXINS
+// ======
+
+// Shorthands.
+@mixin ml($val) { @include margin-leader($val);   }
+@mixin mt($val) { @include margin-trailer($val);  }
+@mixin pl($val) { @include padding-leader($val);  }
+@mixin pt($val) { @include padding-trailer($val); }
+
+@mixin clearfix {
+  &:after {
+    content: "";
+    display: table;
+    clear: both;
+  }
+}
+
+@mixin off-screen {
+  position: absolute;
+  left: -9999px;
+  visibility: hidden;
+}
+
+// For anchor tags that should not be styled differently from their
+// surrounding text.
+@mixin plain-links-self {
+  color: inherit;
+  text-decoration: none;
+}
+
+// For elements whose links should not be styled differently from their
+// surrounding text.
+@mixin plain-links($inverted: false) {
+  a, a:link, a:visited, a:hover, a:active {
+    @include plain-links-self;
+  }
+
+  @if $inverted {
+    color: $color-bg;
+  }
+}
+
+// Given a hyperlink color, infer some nearby colors for hover/visited/focus
+// states.
+@mixin link-color-self($color, $always: false) {
+  &, &:link { color: $color; }
+  @if $always {
+    &:visited, &:hover, &:focus { color: $color; }
+  } @else {
+    &:visited         { color: darken($color, 5%);  }
+    &:hover, &:focus  { color: lighten($color, 5%); }
+  }
+}
+
+@mixin link-color($color, $always: false) {
+  a {
+    @include link-color-self($color, $always);
+  }
+}
+
+// Gives an element an SVG circle background. Inlines a data URL.
+// (Surprisingly, this is one of the more straightforward ways to give an
+// element a circular background.)
+@mixin svg-circle-bg($fill-color, $stroke-color: transparent, $stroke-width: 0) {
+  $fill: url-escape-hex-color($fill-color);
+  $stroke: url-escape-hex-color($stroke-color);
+  $u-stroke-width: strip-units($stroke-width);
+  $icon: '%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22100%22%20height%3D%22100%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%22#{50 - $u-stroke-width}%22%20fill%3D%22#{$fill}%22%20stroke%3D%22#{$stroke}%22%20stroke-width%3D%22#{$stroke-width}%22%20%2F%3E%3C%2Fsvg%3E';
+
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  background-origin: content-box;
+  background-image: url("data:image/svg+xml,#{$icon}");
+}
+
+// Shorthand for `-webkit-text-stroke` and `-webkit-text-fill`.
+@mixin text-stroke($width, $stroke, $fill: transparent) {
+  // For browsers that don't support text-stroke, we use the stroke color as
+  // the text color. For browsers that do support text-stroke,
+  // `text-fill-color` supersedes.
+  color: $stroke;
+  body:not(.edge-14) & {
+    // Except for Edge, which supports text-fill-color but not text-stroke.
+    // So we have to hide this property from Edge. I hate Edge.
+    -webkit-text-fill-color: $fill;
+  }
+  -webkit-text-stroke-width: $width;
+  -webkit-text-stroke-color: $stroke;
+}
+
+// Switch to light-on-dark inside this element.
+@mixin invert($bg: null, $invert-links: true) {
+  color: $color-bg;
+  @if $bg {
+    background-color: $bg;
+  } @else {
+    background-color: $color-fg;
+  }
+
+  @if $invert-links {
+    @include invert-links;
+  }
+}
+
+@mixin invert-links($col: null) {
+  $color: $color-link-inverted;
+  @if $col {
+    $color: $col;
+  }
+
+  a, a:link {
+    color: $color;
+  }
+
+  a:visited {
+    color: darken($color, 10%);
+  }
+}
+
+@mixin plain($inverted: false) {
+  text-decoration: none;
+  @if $inverted {
+    color: $color-bg;
+  } @else {
+    color: $color-fg;
+  }
+}
+
+// Apply to any element that will span the entire width of a container.
+// Applies some padding-left/right only on the narrowest breakpoint.
+@mixin narrow-screen-padding {
+  padding-left: 5vw;
+  padding-right: 5vw;
+
+  @include wide {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+// Like above, but pads on the two narrowest breakpoints.
+@mixin narrow-and-medium-screen-padding {
+  padding-left: 5vw;
+  padding-right: 5vw;
+
+  @include wider {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+// Quick-and-dirty vertical alignment.
+@mixin vertical-align {
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+@mixin background-photo($blur: 15px, $num-photos: 9) {
+  $shadow-spread: 2 * $blur;
+  & { overflow: hidden; }
+
+  &:before {
+    content: '';
+    position: absolute;
+    width: 150%;
+    height: 150%;
+    top: -25px;
+    left: -25px;
+    z-index: -1;
+    background-size: contain;
+    filter: brightness(0.6)
+      drop-shadow(0px 0px $shadow-spread)
+      drop-shadow(0px 0px $shadow-spread)
+      blur($blur);
+
+    @content;
+  }
+
+  @for $i from 1 through $num-photos {
+    &[data-image='#{$i}']:before {
+      background-image: url(/wp-content/themes/stag2/images/bg/#{$i}.jpg);
+    }
+  }
+}
+
+@mixin placeholder {
+  &::-webkit-input-placeholder { @content; }
+  &::-moz-placeholder { @content; }
+  &:-ms-input-placeholder { @content; }
+}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Fixtures for <%= grammar %></title>
+
+    <%_ if (config.languages) { _%>
+    <meta name="daub-language" value="<%= config.languages %>">
+    <%_ } _%>
+
+    <link rel="stylesheet" href="/static/theme.css"   type="text/css">
+    <link rel="stylesheet" href="/static/support.css" type="text/css">
+
+    <script src="/dist/daub.umd.cjs"></script>
+    <script src="/static/support.js"></script>
+  </head>
+  <body>
+
+    <ul id="menu"></ul>
+
+  <%_ for (let [name, code] of Object.entries(table)) { _%>
+    <h1 id="<%= slugify(name) %>"><%= titleize(name) %></h1>
+
+<pre <%- otherAttributes(name, config) %>><code class="<%= grammarForFixture(name, config) || grammar %>"><%- escape(code) %></code></pre>
+  <%_ } _%>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        Support.setup();
+      });
+    </script>
+  </body>
+</html>

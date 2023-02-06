@@ -13,7 +13,7 @@
     ".": "./src/daub.js",
     "./cjs": "./dist/daub.cjs.cjs",
     "./umd": "./dist/daub.umd.cjs",
-    "./worker": "./dist/daub.worker.umd.cjs",
+    "./umd/worker": "./dist/daub.worker.umd.cjs",
     "./all": "./src/all.js",
     "./grammars/*": "./src/grammars/*.js",
     "./grammars/*.js": "./src/grammars/*.js",
@@ -23,7 +23,8 @@
   "imports": {
     "#internal/*": "./src/*.js",
     "#internal/grammars/*": "./src/grammars/*.js",
-    "#internal/plugins/*": "./src/plugins/*.js"
+    "#internal/plugins/*": "./src/plugins/*.js",
+    "#internal/test/unit/helpers": "./test/unit/helpers.js"
   },
   "engines": {
     "node": ">= 17.0.0"
@@ -41,14 +42,22 @@
     "@rollup/plugin-node-resolve": "^15.0.1",
     "@rollup/plugin-strip": "^3.0.2",
     "@rollup/plugin-terser": "^0.4.0",
-    "babel-eslint": "^10.0.2",
+    "ejs": "^3.1.8",
     "eslint": "^8.7.0",
     "eslint-plugin-unicorn": "^10.0.0",
+    "express": "^4.18.2",
+    "jasmine": "^4.5.0",
+    "jest": "^29.4.1",
+    "jsdom": "^21.1.0",
+    "nodemon": "^2.0.20",
     "rollup": "^3.12.0"
   },
   "scripts": {
     "build": "rollup -c",
-    "dev": "rollup -w -c rollup.config.js --bundleConfigAsCjs"
+    "dev": "rollup -w -c rollup.config.js --bundleConfigAsCjs",
+    "test": "jasmine --config=jasmine.json",
+    "test:server": "node ./test/server.js",
+    "test:watch": "nodemon -e js --exec 'npm run test'"
   },
   "author": "Andrew Dupont",
   "license": "MIT",

@@ -1,0 +1,6 @@
+{
+  "languages": "javascript, html",
+  "grammarOverrides": {
+    "html-with-embedded-javascript.html": "html"
+  }
+}

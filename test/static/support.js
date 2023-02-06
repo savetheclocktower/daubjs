@@ -12,7 +12,7 @@ if (IS_ASYNC) {
 
 let _runningLexerTime = 0;
 let _runningLexerCount = 0;
-document.addEventListener('daub-lexer-time', (e) => {
+document.addEventListener('daub-lexer-time', e => {
   let time = e.detail;
   _runningLexerTime += time;
   _runningLexerCount++;
@@ -20,7 +20,7 @@ document.addEventListener('daub-lexer-time', (e) => {
 });
 
 const Support = {
-  setup () {
+  async setup () {
     if (!GRAMMAR) {
       let meta = document.querySelector(`meta[name="language"], meta[name="daub-language"]`);
       if (meta) {
@@ -28,7 +28,7 @@ const Support = {
       } else {
         let loc = window.location.toString();
         let m = loc.match(/\/(\w*?)\.html/);
-        if (m) { GRAMMAR = m[1]; }
+        if (m) { GRAMMAR = m[1] === 'index' ? null : m[1]; }
       }
     }
     if ( document.querySelector('ul#menu') ) {
@@ -44,6 +44,8 @@ const Support = {
 
       document.querySelector('ul#menu').innerHTML = lis.join('\n');
     }
+
+    console.log('menu:', document.querySelector('ul#menu'));
 
     if (!daub) { return; }
 
@@ -69,13 +71,14 @@ const Support = {
           if (g) { HIGHLIGHTER.addGrammar(g); }
         });
       } else {
-        for (let grammar of daub.GRAMMARS) {
+        for (let grammar of Object.values(daub.GRAMMARS)) {
           HIGHLIGHTER.addGrammar(grammar);
         }
       }
     }
 
     HIGHLIGHTER.addElement(root);
+    this.HIGHLIGHTER = HIGHLIGHTER;
 
     let start, end;
     start = performance.now();
@@ -83,7 +86,10 @@ const Support = {
       performance.mark('daub-before');
     }
 
-    let markEnd = function () {
+    let markEnd = function (nodes = null) {
+      if (nodes) {
+        console.log('Highlighted', nodes, 'nodes.');
+      }
       if (performance && performance.mark) {
         performance.mark('daub-after');
         performance.measure('daub-before', 'daub-after');
@@ -92,12 +98,8 @@ const Support = {
       console.info('Highlight time:', end - start, 'ms');
     };
 
-    if (IS_ASYNC) {
-      HIGHLIGHTER.highlight(markEnd);
-    } else {
-      HIGHLIGHTER.highlight();
-      markEnd();
-    }
+    await HIGHLIGHTER.highlight();
+    markEnd();
 
     // Keep the chosen section in view.
     let hash = window.location.hash;

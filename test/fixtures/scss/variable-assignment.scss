@@ -1,0 +1,8 @@
+// The default value is `padding-box` -- the box model used by modern browsers.
+//
+// If you wish to do so, you can override the default constant with `border-box`
+//
+// To override to the default border-box model, use this code:
+//     $default-background-clip: border-box
+
+$default-background-clip: padding-box !default;

@@ -73,9 +73,10 @@ export default View;
 <pre><code class="javascript-jsx">
 function InfoWindow () {
   return (
-    &lt;InfoWindow onCloseClick={onClose} willOpen={true} width={100} handler={s =&gt; s.state}&gt;
+    &lt;InfoWindow onCloseClick={onClose} willOpen={true} width={100} handler={s =&gt; s.state} {...otherProps}&gt;
       &lt;section className="ActivePointInfoWindow"&gt;
         &lt;header className="ActivePointInfoWindow__point-name"&gt;{shortName}&lt;/header&gt;
+        {includeFoo && &lt;Foo className="troz" />}
 
         &lt;InfoWindowDirections directions={directions} /&gt;
         &lt;InfoWindowShops shops={shops} /&gt;
