@@ -1,5 +1,6 @@
 import { gsub, regExpToString, wrap } from '#internal/utils';
 import Template from '#internal/template';
+import Context from '#internal/context';
 
 function resolve (value) {
   if (typeof value === 'function') { return value(); }
@@ -46,6 +47,12 @@ class Grammar {
   parse (text, context = null) {
     let pattern = this.pattern;
     pattern.lastIndex = 0;
+
+    if (!context) {
+      context = new Context({
+        highlighter: { parse: (x) => x }
+      });
+    }
 
     // eslint-disable-next-line
     console.debug(`Parsing ${this.name || ''}`, { pattern, text });
@@ -153,8 +160,9 @@ class Grammar {
 
   _makeRules (rules, prevCaptures = 0) {
     let results = [];
-    for (let ruleName in rules) {
-      let rule = new Rule(ruleName, rules[ruleName], prevCaptures);
+    for (let [ruleName, rawRule] of Object.entries(rules)) {
+      let name = rawRule.name || ruleName;
+      let rule = new Rule(name, rawRule, prevCaptures);
       results.push(rule);
       prevCaptures += rule.length;
     }
