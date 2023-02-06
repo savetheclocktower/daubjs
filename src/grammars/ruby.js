@@ -384,14 +384,6 @@ const MAIN = new Grammar('ruby', {
     captures: {
       '3': () => STRINGS
     }
-  },
-
-  'keyword operator': {
-    pattern: /(\+|-|\*|\/|>|&gt;|<|&lt;|=>|=&gt;|>>|&gt;&gt;|<<|&lt;&lt;|=~|\|\|=|==|=|\|\||&&|\+=|-=|\*=|\/=)/
-  },
-
-  'keyword keyword-special': {
-    pattern: /\b(initialize|new|loop|extend|raise|attr|catch|throw|private|protected|public|module_function|attr_(?:reader|writer|accessor))\b/
   }
 });
 
@@ -400,6 +392,14 @@ MAIN.extend(VALUES);
 // These need to be lowest possible priority, so we put them in after the
 // values grammar.
 MAIN.extend({
+  'keyword operator': {
+    pattern: /(\+|-|\*|\/|<<|&lt;&lt;|>|&gt;|<|&lt;|=>|=&gt;|>>|&gt;&gt;|=~|\|\|=|==|=|\|\||&&|\+=|-=|\*=|\/=)/
+  },
+
+  'keyword keyword-special': {
+    pattern: /\b(initialize|new|loop|extend|raise|attr|catch|throw|private|protected|public|module_function|attr_(?:reader|writer|accessor))\b/
+  },
+
   comment: {
     pattern: /#[^\n]+/
   },
@@ -411,7 +411,7 @@ MAIN.extend({
       let stack = context.get('bracesStack', []);
       let scope = stack.pop();
       if (!scope) return;
-      return `${text}<!-- close ${scope} --></b>`;
+      return `${text} <!-- close ${scope} --></b>`;
     }
   },
 
@@ -421,7 +421,7 @@ MAIN.extend({
       let stack = context.get('bracesStack', []);
       let scope = stack.pop();
       if (!scope) return;
-      return `${text}<!-- close ${scope} --></b>`;
+      return `${text} <!-- close ${scope} --></b>`;
     }
   }
 });

@@ -202,7 +202,7 @@ const VALUES = new Grammar({
     // * any non-quotes and non-backslashes OR
     // * an even number of consecutive backslashes OR
     // * any backslash-plus-quote pair.
-    pattern: /(")((?:[^"\\]|\\\\|\\")*)(")/,
+    pattern: /(")((?:[^"\\]|\\[rnt]|\\\\|\\")*)(")/,
     wrapReplacement: true,
     captures: {
       '2': () => ESCAPES
@@ -295,6 +295,9 @@ const MACROS = new Grammar({
 const MAIN = new Grammar('arduino', {
   'keyword keyword-control': {
     pattern: /\b(?:alignas|alignof|asm|auto|break|case|catch|compl|constexpr|const_cast|continue|decltype|default|delete|do|dynamic_cast|else|explicit|export|for|friend|goto|if|inline|new|noexcept|nullptr|operator|register|reinterpret_cast|return|sizeof|static_assert|static_cast|switch|template|this|thread_local|throw|try|typedef|typeid|typename|union|using|while)\b/
+  },
+  'support': {
+    pattern: /\b(?:printf|sprintf|strpos|strstr|strcat)/
   }
 }).extend(COMMENTS, DECLARATIONS);
 

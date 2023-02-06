@@ -41,9 +41,15 @@ const LEXER_STRING = new Lexer([
 // `{` it sees.
 const LEXER_BALANCE_BRACES = new Lexer([
   {
+    name: 'exclude escaped punctuation',
+    pattern: /\\\{/,
+    raw: true
+  },
+  {
     name: 'punctuation',
     pattern: /\{/,
     inside: {
+      name: 'inside-brace',
       lexer: () => LEXER_BALANCE_BRACES
     }
   },
@@ -56,6 +62,19 @@ const LEXER_BALANCE_BRACES = new Lexer([
 
 const LEXER_TEMPLATE_STRING_INTERPOLATION = new Lexer([
   {
+    name: 'exclude escaped punctuation',
+    pattern: /\\\{/,
+    raw: true
+  },
+  {
+    name: 'punctuation',
+    pattern: /\{/,
+    inside: {
+      name: 'inside-brace',
+      lexer: LEXER_BALANCE_BRACES
+    }
+  },
+  {
     name: 'exclude escaped closing brace',
     pattern: /\\\}/,
     raw: true
@@ -66,6 +85,18 @@ const LEXER_TEMPLATE_STRING_INTERPOLATION = new Lexer([
     final: true
   }
 ], 'template-string-interpolation');
+
+const LEXER_TEMPLATE_STRING_INTERPOLATION_START = new Lexer([
+  {
+    name: 'interpolation-start',
+    pattern: /(\$\{)/,
+    inside: {
+      name: 'interpolation',
+      lexer: LEXER_TEMPLATE_STRING_INTERPOLATION
+    },
+    final: true
+  }
+], 'template-string-interpolation-start');
 
 const LEXER_TEMPLATE_STRING = new Lexer([
   {
@@ -87,6 +118,18 @@ const LEXER_TEMPLATE_STRING = new Lexer([
     final: true
   }
 ], 'template-string');
+
+const LEXER_TEMPLATE_STRING_START = new Lexer([
+  {
+    name: 'string-start',
+    pattern: /\x60/,
+    final: true,
+    after: {
+      name: 'string string-template',
+      lexer: LEXER_TEMPLATE_STRING
+    }
+  }
+], 'template-string-start');
 
 
 // After seeing `$` followed by `{`, consumes until it sees a balanced closing
@@ -423,7 +466,10 @@ let REGEX_INTERNALS = new Grammar({
 
 let INSIDE_TEMPLATE_STRINGS = new Grammar({
   'interpolation': {
-    pattern: /(\$\{)(.*?)(\})/,
+    pattern: /(\$\{)(.*)(\})/,
+    index: (text, context) => {
+      return balanceByLexer(text, LEXER_TEMPLATE_STRING_INTERPOLATION_START, context);
+    },
     captures: {
       '1': 'punctuation interpolation-start',
       '2': () => MAIN,
@@ -438,7 +484,7 @@ const PARAMETERS = new Grammar({
     pattern: /([A-Za-z$_][$_A-Za-z0-9_]*)(\s*=\s*)(.*?)(?=,|\)|\n|$)/,
     captures: {
       '1': 'variable parameter',
-      '2': 'ror',
+      '2': 'keyword operator',
       '3': () => VALUES
     }
   },
@@ -456,7 +502,10 @@ const PARAMETERS = new Grammar({
 
 let STRINGS = new Grammar({
   'string string-template': {
-    pattern: /(`)((?:[^`\\]|\\\\|\\.)*)(`)/,
+    pattern: /(`)([\s\S]*)(`)/,
+    index (text, context) {
+      return balanceByLexer(text, LEXER_TEMPLATE_STRING_START, context);
+    },
     captures: {
       '1': 'punctuation string-start',
       '2': INSIDE_TEMPLATE_STRINGS,
@@ -550,7 +599,7 @@ let JSX_TAG_ROOT = new Grammar({
     },
     replacement: `<span class='jsx'>#{0}</span>`,
     after (text, context) {
-      return context.get('lexer-highlighted') || text;
+      return context ? (context.get('lexer-highlighted') || text) : text;
     }
   }
 });

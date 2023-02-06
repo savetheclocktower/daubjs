@@ -88,7 +88,7 @@ const MAIN = new Grammar('shell', {
   },
 
   keyword: {
-    pattern: /\b(?:if|fi|case|esac|for|do|else|then|while|exit|done|shift)\b/
+    pattern: /\b(?:if|fi|case|esac|for|in|do|else|then|while|exit|done|shift)\b/
   },
 
   operator: {

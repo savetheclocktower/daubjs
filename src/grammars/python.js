@@ -68,7 +68,11 @@ const VALUES = new Grammar({
   },
 
   constant: {
-    pattern: /\b(self|None|True|False)\b/
+    pattern: /\b(self|None|True|False)\b/,
+    before (m, context) {
+      m[1] = wrap(m[1], `constant constant-${m[1].toLowerCase()}`);
+    },
+    replacement: "#{1}"
   },
 
   // Initial declaration of a constant.
@@ -138,8 +142,26 @@ const MAIN = new Grammar('python', {
     pattern: /(int|float|bool|chr|str|bytes|list|dict|set)(?=\()/
   },
 
+  'meta: exclude format method on strings': {
+    pattern: /(\.)(format)\b/,
+    captures: {}
+  },
+
   'support support-builtin': {
-    pattern: /(repr|round|print|input|len|min|max|sum|sorted|enumerate|zip|all|any|open)(?=\()/
+    // https://docs.python.org/3/library/functions.html
+    // minus the types described above
+    pattern: VerboseRegExp`
+      \b(?:
+        abs|aiter|all|any|anext|ascii|bin|breakpoint|bytearray|
+        callable|classmethod|compile|complex|delattr|dir|divmod|
+        enumerate|eval|exec|filter|format|frozenset|getattr|globals|
+        hasattr|hash|help|hex|id|input|isinstance|issubclass|iter|len|
+        locals|map|max|memoryview|min|next|object|oct|open|ord|pow|
+        print|property|range|repr|reversed|round|setattr|slice|sorted|
+        staticmethod|sum|super|tuple|type|vars|zip|__import__
+      )\b(?=\()
+    `
+    // pattern: /(repr|round|print|input|len|min|max|sum|sorted|enumerate|zip|all|any|open)(?=\()/
   },
 
   'meta: from/import/as': {
@@ -184,8 +206,12 @@ const MAIN = new Grammar('python', {
     pattern: /#[^\n]*(?=\n)/
   },
 
+  'keyword storage': {
+    pattern: /\b(?:global|nonlocal)\b/
+  },
+
   keyword: {
-    pattern: /\b(?:if|else|elif|print|class|pass|from|import|raise|while|try|finally|except|return|global|nonlocal|for|in|del|with)\b/
+    pattern: /\b(?:if|else|elif|print|class|pass|from|import|raise|while|try|finally|except|return|for|in|del|with)\b/
   },
 
   'meta: method definition': {

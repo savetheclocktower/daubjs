@@ -55,8 +55,13 @@ const LEXER_ATTRIBUTE_SEPARATOR = new Lexer([
 
 const LEXER_TAG = new Lexer([
   {
-    name: 'tag tag-html',
+    // Match custom elements (hyphen in name) before non-custom elements.
+    name: 'tag tag-html tag-html-custom',
     pattern: /^[a-zA-Z][a-zA-Z-:]*(?=\s|>|&gt;)/
+  },
+  {
+    name: 'tag tag-html',
+    pattern: /^[a-zA-Z][a-zA-Z:]*(?=\s|>|&gt;)/
   },
   {
     name: 'attribute-name',
@@ -148,7 +153,9 @@ const MAIN = new Grammar('html', {
       '3': ATTRIBUTES
     },
     before: (r, context) => {
-      r[5] = context.highlighter.parse(r[5], 'javascript', context);
+      if (context.highlighter) {
+        r[5] = context.highlighter.parse(r[5], 'javascript', context);
+      }
     }
   },
 
@@ -202,8 +209,18 @@ const MAIN = new Grammar('html', {
     }
   },
 
-  'element element-closing': {
+  'element element-closing element-closing-custom': {
     pattern: /((?:<|&lt;)\/)([a-zA-Z:\-]+)(>|&gt;)/,
+    captures: {
+      '1': 'punctuation',
+      '2': 'tag tag-html tag-html-custom',
+      '3': 'punctuation'
+    },
+    wrapReplacement: true
+  },
+
+  'element element-closing': {
+    pattern: /((?:<|&lt;)\/)([a-zA-Z:]+)(>|&gt;)/,
     captures: {
       '1': 'punctuation',
       '2': 'tag tag-html',

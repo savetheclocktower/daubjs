@@ -1,5 +1,5 @@
 import Grammar from '#internal/grammar';
-import { compact } from '#internal/utils';
+import { compact, VerboseRegExp } from '#internal/utils';
 
 const INSIDE_STRINGS = new Grammar({
   variable: {
@@ -18,16 +18,15 @@ const VALUES = new Grammar({
     pattern: /\bhttps?:\/\/.*?(?=;|\s|$)/
   },
   'meta: unquoted path string': {
-    pattern: /(\s+|^)((?:[A-Za-z0-9_\-]+)?\/(?:\\\s|.)+?(?=\s|$))/,
-    // pattern: VerboseRegExp`
-    //   (\s+|^) # preceding space or beginning of line
-    //   (
-    //     (?:[A-Za-z0-9_\-]+)? # possible name before first slash, if a relative path
-    //     \/            # leading path separator
-    //     (?:\\\s|.)+?    # any characters other than spaces, but allowing escaped spaces
-    //     (?=\s|$)      # space or end of string
-    //   )
-    // `,
+    pattern: VerboseRegExp`
+      (\s+|^) # preceding space or beginning of line
+      (
+        (?:[A-Za-z0-9_\-]+)? # possible name before first slash, if a relative path
+        \/            # leading path separator
+        (?:\\\s|.)+?    # any characters other than spaces, but allowing escaped spaces
+        (?=\s|$)      # space or end of string
+      )
+    `,
     captures: {
       '2': 'string string-unquoted string-path'
     }
@@ -39,22 +38,21 @@ const VALUES = new Grammar({
     }
   },
   'meta: string': {
-    pattern: /((?:^|[^\\])(?:\\\\)*)("(?:[^"\\]|\\.|\n)*"|'(?:[^'\\]|\\.|\n)*')/,
-    // pattern: VerboseRegExp`
-    //   (                 # group 1: whitespace or control characters
-    //     (?:^|[^\\])
-    //     (?:\\\\)*
-    //   )
-    //   (                 # group 2: entire string
-    //     "            # group 3: leading punctuation
-    //     (?:[^"\\]|\\.|\n)*
-    //     "            # group 4: trailing punctuation
-    //     |
-    //     '            # group 5: leading punctuation
-    //     (?:[^'\\]|\\.|\n)*
-    //     '             # group 6: trailing punctuation
-    //   )
-    // `,
+    pattern: VerboseRegExp`
+      (                 # group 1: whitespace or control characters
+        (?:^|[^\\])
+        (?:\\\\)*
+      )
+      (                 # group 2: entire string
+        "            # group 3: leading punctuation
+        (?:[^"\\]|\\.|\n)*
+        "            # group 4: trailing punctuation
+        |
+        '            # group 5: leading punctuation
+        (?:[^'\\]|\\.|\n)*
+        '             # group 6: trailing punctuation
+      )
+    `,
     before (r) {
       r[2] = handleString(r[2]);
     },
@@ -100,35 +98,28 @@ const MAIN = new Grammar('nginx', {
   },
 
   'meta: directive': {
-    pattern: /(^|\s)(\w(?:[^;{}"'\\\s]|\\.|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\s+(?:\#.*(?!.)|(?![\#\s])))*?)(?=\s*[;{])/,
-
-    // pattern: VerboseRegExp`
-    //   (^|\s)
-    //   (
-    //     \w(?:
-    //       [^;{}"'\\\s]|
-    //       \\.|
-    //       "(?:
-    //         [^"\\]|
-    //         \\.
-    //       )*"|
-    //       '(?:
-    //         [^'\\]|
-    //         \\.
-    //       )*'|
-    //       \s+(?:
-    //         \#.*(?!.)|
-    //         (?![\#\s])
-    //       )
-    //     )*?
-    //   )
-    //   (?=\s*[;{])
-    // `,
-    // before: (r) => {
-    //   console.debug('directive parsing', r[2]);
-    //   r[2] = INSIDE_DIRECTIVES.parse(r[2]);
-    //   console.debug('directive now:', r[2]);
-    // }
+    pattern: VerboseRegExp`
+      (^|\s)
+      (
+        \w(?:
+          [^;{}"'\\\s]|
+          \\.|
+          "(?:
+            [^"\\]|
+            \\.
+          )*"|
+          '(?:
+            [^'\\]|
+            \\.
+          )*'|
+          \s+(?:
+            \#.*(?!.)|
+            (?![\#\s])
+          )
+        )*?
+      )
+      (?=\s*[;{])
+    `,
     captures: {
       '2': INSIDE_DIRECTIVES
     }
