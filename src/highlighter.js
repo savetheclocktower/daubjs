@@ -19,6 +19,7 @@ import Grammar from '#internal/grammar';
 //    user to write their own worker script.
 
 const EMPTY_FUNCTION = () => {};
+const makeDefaultUid = () => Math.random().toString(16).slice(2);
 
 /**
  * @abstract
@@ -49,7 +50,7 @@ class AbstractHighlighter {
 
   _updateElement (element, text, language) {
     let doc = element.ownerDocument;
-    let range = document.createRange();
+    let range = doc.createRange();
 
     // Turn the string into a DOM fragment so that it can more easily be
     // acted on by plugins.
@@ -160,32 +161,30 @@ class AsyncHighlighter extends AbstractHighlighter {
       .join(', ');
   }
 
-  _scan (node, callback = EMPTY_FUNCTION) {
+  _scan (node) {
     let selector = this._getSelector();
     let nodes = Array.from( node.querySelectorAll(selector) );
 
     if (!nodes || !nodes.length) {
-      callback(0);
-      return;
+      return Promise.resolve([]);
     }
 
     let length = nodes.length;
     let complete = 0;
 
-    nodes.forEach(element => {
-      let uid = this.uid;
-      element.setAttribute('data-daub-uid', this.uid++);
+    let promises = nodes.map(element => {
+      let uid;
+      if (element.hasAttribute('data-daub-uid')) {
+        uid = element.getAttribute('data-daub-uid');
+      } else {
+        uid = this.uid;
+        element.setAttribute('data-daub-uid', this.uid++);
+      }
 
-      // TODO: Context.
       let source = element.innerHTML;
       let language = this._getLanguage(element);
-      // TODO: Encode?
-      this.parse(source, language, uid, (parsed, element) => {
-        complete++;
-        if (complete === length) {
-          // All found nodes are done highlighting.
-          if (callback) { callback(nodes); }
-        }
+
+      return this.parse(source, language, uid).then(([parsed, element]) => {
         this._updateElement(element, parsed, language);
         element.setAttribute('data-daub-highlighted', 'true');
         /**
@@ -204,28 +203,27 @@ class AsyncHighlighter extends AbstractHighlighter {
           { element, language },
           { cancelable: false }
         );
+        return element;
       });
     });
+
+    return Promise.all(promises);
   }
 
   _handleMessage (e) {
-    let { id, language, source } = e.data;
+    let { id, source } = e.data;
     let element;
     for (let el of this.elements) {
       element = el.querySelector(`[data-daub-uid="${id}"]`);
       if (element) { break; }
     }
-    // let element = this.node.querySelector(`[data-daub-uid="${id}"]`);
     let callback = this._callbacks[id];
     delete this._callbacks[id];
-    if (!element) {
-      // How do we prevent stale highlighting results from being displayed? The
-      // process of triggering a newer highlighting pass for that element gave
-      // it a new UID. The older call won't find any element on the page.
-      // That's the code path we're in right now.
+    if (!callback) {
+      // TODO: This shouldn't happen. Worth throwing?
       return;
     }
-    if (callback) { callback(source, element); }
+    callback([source, element]);
   }
 
   _setupWorker () {
@@ -235,18 +233,41 @@ class AsyncHighlighter extends AbstractHighlighter {
   // PUBLIC
   // ======
 
-  parse (text, language = null, uid, callback) {
+  /**
+   * Parses arbitrary text using a single grammar name.
+   *
+   * You usually won't need to call this directly; it's called by
+   * `AsyncHighlighter#highlight`. You may, though, use it if you want to
+   * request highlighting of text that isn't in the DOM, as long as you
+   * know the name of the grammar you'd like to use.
+   *
+   * If the worker doesn't recognize the grammar name, it will return the
+   * original text unmodified.
+   *
+   * @param   {string} text The raw source to highlight.
+   * @param   {string} language The grammar name with which to highlight.
+   * @param   {string} [uid=null] A unique ID to represent the job.
+       Optional; if missing, one will be generated at random.
+   * @returns {Promise} Resolves with a two-item array: the highlighted
+   *   source, and any element associated with this job. If you call this
+   *   method manually, the second item will be `undefined`.
+   */
+  parse (text, language = null, uid = null) {
     if (!language) {
       throw new Error(`Must specify a language!`);
     }
 
-    this._callbacks[uid] = callback;
+    if (!uid) { uid = makeDefaultUid(); }
 
-    this.worker.postMessage({
-      type: 'parse',
-      text,
-      language,
-      id: uid
+    return new Promise((resolve, reject) => {
+      this._callbacks[uid] = resolve;
+
+      this.worker.postMessage({
+        type: 'parse',
+        text,
+        language,
+        id: uid
+      });
     });
   }
 
@@ -258,36 +279,20 @@ class AsyncHighlighter extends AbstractHighlighter {
    * weren't yet on the page).
    *
    * To force `Highlighter` to re-highlight an element, remove the element's
-   * `data-daub-highlighted` attribute, then call `Highlighter#highlight` again.
-   * You should not do this unless you have also completely replaced the
-   * element's contents.
+   * `data-daub-highlighted` attribute, then call `Highlighter#highlight`
+   * again. You should not do this unless you have also completely replaced
+   * the element's contents.
    *
    * @fires AsyncHighlighter.daub-will-highlight
    * @fires AsyncHighlighter.daub-highlighted
    *
-   * @param {Function} callback A callback to invoke when a particular batch of
-   *   highlighting is done. Takes one parameter: an array of nodes for which
-   *   the call to `highlight` triggered highlighting.
-   *
-   *   Each time `highlight` is called, the `callback` (if provided) will be
-   *   called either zero times or once. It will be called zero times if zero
-   *   elements have been added to the highlighter via `addElement`.
-   *
-   *   Otherwise, the callback will be called exactly once, no matter how many
-   *   elements have been added to the highlighter, and no matter how many
-   *   different grammars are used in the web worker for parsing.
+   * @returns {Promise} A promise that resolves after all elements that may
+   *   need highlighting have been highlighted. Resolves with an array of
+   *   affected nodes.
    */
-  highlight (callback = EMPTY_FUNCTION) {
-    let elementCount = this.elements.length;
-    let count = 0;
-    let allAffectedNodes = [];
-    let innerCallback = (affectedNodes = []) => {
-      // allAffectedNodes += affectedNodes.length;
-      allAffectedNodes.push(...affectedNodes);
-      count++;
-      if (count === elementCount) { callback(allAffectedNodes); }
-    };
-    this.elements.forEach(el => this._scan(el, innerCallback));
+  highlight () {
+    let promises = this.elements.map(el => this._scan(el));
+    return Promise.all(promises).then(results => results.flat());
   }
 }
 
@@ -354,15 +359,12 @@ class Highlighter extends AbstractHighlighter {
   _scan (node) {
     this.grammars.forEach((grammar) => {
       let selector = this._selectorsForGrammar(grammar);
-
       let nodes = node.querySelectorAll(selector);
-      nodes = Array.from(nodes);
       if (!nodes || !nodes.length) { return; }
-      nodes.forEach((el) => {
+      Array.from(nodes).forEach((el) => {
         if ( el.hasAttribute('data-daub-highlighted') ) { return; }
         let context = new Context({ highlighter: this });
         let source = el.innerHTML;
-        console.log('source???', source);
         if (grammar.options.encode) {
           source = source.replace(/</g, '&lt;');
         }
@@ -462,7 +464,8 @@ class Highlighter extends AbstractHighlighter {
    *   is already available to you; otherwise omit this argument and a new
    *   instance will be created. You'll hardly ever have to create a `Context`
    *   instance yourself.
-   * @returns {string} Parsed text.
+   * @returns {string} Parsed text. If a grammar is specified by name and this
+   *   instance does not recognize it, the original text will be returned.
    */
   parse (text, grammar = null, context = null) {
     if (typeof grammar === 'string') {
