@@ -1,22 +1,12 @@
-# Lexers
+# The ‘Lexer’ class
 
 The purpose of Daub is to do syntax highlighting according to my high standards without compromises. If I wanted to compromise, I’d just use Prism, and I don’t mean that as an insult — Prism does a far more _sensible_ cost/benefit analysis than Daub.
 
-My workflow has always been as follows:
-
-1. Write a simple code highlighter
-2. Write a blog post
-3. Observe to myself, “hmm, this code I wrote for the blog post doesn’t highlight the way I think it should.”
-4. Change the code highlighter in whatever way is necessary to produce the outcome I want
-5. Declare victory
-6. Wait six months
-7. Return to step #2
-
-This resulted in waves of (a) adding complexity, then eventually (b) streamlining the complexity with refactors.
+My habit is to add new things to Daub whenever I write a blog post and get annoyed that the code blocks in that post don’t look right. This results in waves of (a) adding complexity, then eventually (b) streamlining the complexity with refactors.
 
 ## Origins
 
-Highlighting JSX presented my first real challenge. It’s a headache for TextMate-style grammars in general, but with extra features of Oniguruma compared to JavaScript’s regex engine mean that IDEs can do decently enough.
+Highlighting JSX presented my first real challenge. It’s a headache for TextMate-style grammars in general, but the extra features of Oniguruma compared to JavaScript’s regex engine mean that IDEs can do decently enough.
 
 A JSX grammar is an ordinary JavaScript grammar, except with a new sort of value type: a JSX element. JSX elements can appear wherever a literal value can appear, and the contents of a JSX element can be arbitrarily complicated.
 
@@ -45,67 +35,41 @@ Obviously this is unidiomatic React code, but it’s a bit exaggerated to illust
 
 Most of the other balancing we’ve needed to do in Daub is handled by the ~20 lines of code that make up `Utils.balance`, but we need something heavier-duty for JSX.
 
-To solve this problem, I created something that I called `Lexer`. (Don’t read that too literally; I don’t know if it 100% matches the formal computer science definition of a lexer, but it was close enough for my brain.)
+To solve this problem, I created something that I called `Lexer`. I don’t know if it 100% matches the formal computer science definition of a [lexer](https://en.wikipedia.org/wiki/Lexical_analysis), but it was close enough for my brain.
+
+A lexer differs from a grammar in a few respects:
+
+* Ordering of rules is less important. When matching against text, the “winning” rule is the one that matches closest to the start of the string, with rule order only used to break ties.
+
+* A lexer can use a rule match to hand off part of its work to another lexer. In doing so, it implicitly changes state, recognizing that none of its rules are applicable until the sub-lexer is done.
+
+  For instance, a lexer whose job is to find the end of an opening HTML tag will have a rule for matching an opening quotation mark. If that rule is matched, the lexer will recognize that an attribute value has started, and hand its work off to another lexer whose job is to consume the entire attribute value, because nothing in that span of text can possibly be relevant to its mission. When the sub-lexer finishes and returns control to the main lexer, it can once again start searching for a `>` character.
+
+* Like grammars, lexers will stop parsing when none of their rules match, or when the string is fully parsed. But they can also stop parsing when certain rules are matched.
 
 Here’s how it works:
 
 * A `Lexer` is instantiated with an array of rules, broadly similar to the rules in Daub grammars. Each rule has a `name` (string, mainly for debugging) and a `pattern` (regular expression).
+
 * By default, a rule matches when its `pattern` matches, though a rule can impose further constraints by defining a function named `test`; called with the candidate match as an argument, its return value will determine whether the rule _actually_ matches.
+
 * When given a string, a lexer will try to match the string against each of its rules. If more than one rule matches, the lexer will pick the one that matched as close to the start of the string as possible.
+
 * A rule does not necessarily have to match at the beginning of the string, though it can use the `^` anchor in its pattern to enforce this. If a rule matches at index 7, the substring from 0-6 will still be consumed, but treated as raw text. If more than one rule matches, the lexer will prefer whichever one results in the least raw text, with ties favoring earlier rules.
+
+* Running a lexer transforms part of a string into a series of tokens. An ordinary rule consumes some amount of text and transforms it into a single token.
+
 * Beyond that, each rule can do one of several things when its `pattern` matches:
-  * It can delegate further processing to a _different_ lexer until such time as that lexer decides it’s done consuming text, at which point it will continue consuming whatever wasn’t consumed by the sub-lexer.
+
+  * It can delegate further processing to a _different_ lexer until such time as that lexer decides it’s done consuming text, at which point it will continue consuming whatever wasn’t consumed by the sub-lexer. A rule with a sub-lexer becomes a token that contains multiple sub-tokens of its own.
   * It can be defined as `final` — i.e., matching this rule signals that the lexer is done and can return to whatever called it. `final` can be either a boolean or a function which can test the match before deciding on finality.
+
 * A lexer will run until
   * it runs out of string to consume, or
   * it encounters a rule marked as `final`, or
   * nothing else in the remainder of the input string matches any of the lexer’s rules.
+
 * When a lexer ends processing, control will return to whatever invoked it — either user code or another lexer. The return value of the lexer is an object containing the number of characters consumed, the portion of the string that went unparsed, and a `tokens` property containing a decorated syntax tree of the portion that _was_ parsed.
-
-## Balancing
-
-To conceptualize this better, let’s take the concrete example of parsing the following JSX:
-
-```js
-function SomeComponent () {
-  return <SomeOtherComponent foo="bar" />;
-}
-
-function SomeOtherComponent () {
-  return <SomeFurtherComponent troz="zort" />;
-}
-```
-
-We’ll skip ahead to the first occurrence of JSX and reason through it from there:
-
-* A Daub grammar recognizes a JSX construct. It greedily matches as much text as could possibly be part of that construct. The `index` function uses `Utils.balanceByLexer(matchText, JSX_TAG_ROOT)`, a function which uses a `Lexer` to figure out where the match should end.
-* `Utils.balanceByLexer` calls the `run` method and supplies `matchText` as an argument.
-* The lexer will receive the following text…
-
-  ```
-    <SomeOtherComponent foo="bar" />;
-  }
-
-  function SomeOtherComponent () {
-    return <SomeFurtherComponent troz="zort" />;
-  ```
-
-  …because the grammar has selected the longest possible match.
-
-* As the “root” lexer, `JSX_TAG_ROOT` creates a `Context` instance to pass around so that information learned by one lexer can be acted upon by another. Certain rules hook into the `test` callback as an opportunity to set a flag, and other rules consuled the context in their `final` callbacks to dynamically decide whether to stop parsing.
-* `JSX_TAG_ROOT` has a rule to match and consume the opening angle bracket (`<`), after which it delegates the next step to a lexer named `JSX_TAG_NAME`.
-* `JSX_TAG_NAME` has rules for matching HTML elements (`div`, `address`, what-have-you) and JSX elements (`SomeComponent`, `SomeOtherComponent`). In this case, the JSX-element-name rule matches `Something` and delegates to `JSX_INSIDE_TAG` for the next step.
-* `JSX_INSIDE_TAG` has rules for the different things we could encounter after the tag name: one for interpolation (like when you do `<Something {...props} />`), one for attributes (`<Something foo="bar" />`), one for a closing angle bracket (`<div>`), and one for a self-closing tag (`<Something />`) In this case, it consumes the attribute name `foo` and hands off to `JSX_ATTRIBUTE_SEPARATOR`.
-* `JSX_ATTRIBUTE_SEPARATOR` matches the `=` and hands off to `JSX_ATTRIBUTE_VALUE`.
-* `JSX_ATTRIBUTE_VALUE` has rules for the two things we can encounter here: either a simple string or an interpolation. In this case, it’s a string, so it matches `"` and hands off to `JSX_STRING`.
-* `JSX_STRING` will consume up through another `"`, though it has an additional rule for escaped characters so that `\\"` doesn’t flummox it. (The text `bar` is consumed even though it was not matched, since the string-end rule matched after it and was the only rule to match.) The string-end rule is marked as `final: true`, so after consuming `bar"`, **it stops**, and control goes back to `JSX_ATTRIBUTE_VALUE`.
-* None of `JSX_ATTRIBUTE_VALUE`’s rules match the remainder of the text,  so it stops as well, and control goes back to `JSX_ATTRIBUTE_SEPARATOR`, which _also_ can’t match anything else. So control returns to `JSX_INSIDE_TAG`.
-* `JSX_INSIDE_TAG` has the aforementioned self-closing-tag rule, which matches `  />` and has a `final` callback. Control returns to `JSX_TAG_NAME`.
-* `JSX_TAG_NAME` could try to go into the remainder of the text and consume `>SomeFurtherComponent troz="zort" />`, but we don’t want it to do that, so we ensured that all its rules were anchored to the start of the string. Since none of its rules match, it returns control to `JSX_TAG_ROOT`.
-* `JSX_TAG_ROOT` could also try to jump ahead and see the next JSX element, but its single rule is _also_ anchored to the start of the string. It returns because none of its rules match.
-* Control returns to the function that invoked `JSX_TAG_ROOT`, `Utils.balanceByLexer`. That function is interested in only one thing: the `lengthConsumed` property returned by the `run` method. That tells it how much of the string the lexer consumed. We consumed `38` characters, so `balanceByLexer` returns `37` (the string is zero-indexed).
-
-All that work just to get one number? Yes, because it takes that much work to ensure we’re returning the _right_ number.
 
 ## Writing lexers
 
@@ -143,7 +107,7 @@ But how does it work? Let’s look at each rule on its own.
 
 * The two rules that begin with `exclude` are present so that they can detect escaped characters and prevent them from matching other rules. The `raw: true` means that they will be represented in the tree as bare strings without names.
 
-* The `interpolation-start` rule looks for the sequence that would signal an interpolation within the template string. When it matches, it triggers a different lexer. The `inside` property is saying something like this: "Create a new `Token` whose name is `interpolation`. The contents of this new token will be an array that contains (a) the `interpolation-start` token we just made, plus (b) whatever tokens are generated by `LEXER_TEMPLATE_STRING_INTERPOLATION`." (The `after` property works identically to `inside`, except that the triggering token is not added to the collection, but exists in the tree on its own.)
+* The `interpolation-start` rule looks for the sequence that would signal an interpolation within the template string. When it matches, it triggers a different lexer. The `inside` property is saying something like this: "Create a new `Token` whose name is `interpolation`. The contents of this new token will be an array that contains (a) the `interpolation-start` token we just made, plus (b) whatever tokens are generated by `LEXER_TEMPLATE_STRING_INTERPOLATION`." (The `after` property works identically to `inside`, except that the triggering token is not prepended to the collection, but exists in the tree on its own.)
 
 * The `string-end` rule looks for the sequence that would signal the end of the template string. The `final: true` means that an occurrence of this pattern would signal that the lexer’s job is done, and it should return control to whatever called it.
 
@@ -153,7 +117,69 @@ This lexer is ready to parse text:
 LEXER_TEMPLATE_STRING.run(`\`this is a template string \${2 + 3}.\``);
 ```
 
-Notice what we’ve guarded against here. In this particular lexer, don’t have any need to count backticks in the string, even though the user could put their own backticks within the interpolation. Because a different lexer is responsible for parsing the interpolation, it protects us from those errant backticks.
+Notice what we’ve guarded against here. In this particular lexer, we don’t need to count backticks in the string, even though the user could put their own backticks within the interpolation. Because a different lexer is responsible for parsing the interpolation, it protects us from those errant backticks.
+
+But we’ve also hidden the ball a bit. What does `LEXER_TEMPLATE_STRING_INTERPOLATION` do?
+
+```js
+const LEXER_TEMPLATE_STRING_INTERPOLATION = new Lexer([
+  {
+    name: 'exclude escaped punctuation',
+    pattern: /\\\{/,
+    raw: true
+  },
+  {
+    name: 'punctuation',
+    pattern: /\{/,
+    inside: {
+      name: 'inside-brace',
+      lexer: LEXER_BALANCE_BRACES
+    }
+  },
+  {
+    name: 'exclude escaped closing brace',
+    pattern: /\\\}/,
+    raw: true
+  },
+  {
+    name: 'punctuation interpolation-end',
+    pattern: /\}/,
+    final: true
+  }
+], 'template-string-interpolation');
+```
+
+Its job is to look for a closing brace. So it has a rule that does exactly that, preceded by a rule that filters out _escaped_ closing braces. But there’s also a rule that looks for _opening_ braces, because encountering one would change the meaning of any subsequent closing brace.
+
+To parse the contents of an interpolation in their _entirety_ would be quite a lot of work, but we don’t have to do that. We just know that braces inside of a template string have special meaning. So when this lexer finds a `{`, it hands off to `LEXER_BALANCE_BRACES`.
+
+_Another_ lexer? Aren’t we just going in circles? No, this is where it ends:
+
+```js
+const LEXER_BALANCE_BRACES = new Lexer([
+  {
+    name: 'exclude escaped punctuation',
+    pattern: /\\\{/,
+    raw: true
+  },
+  {
+    name: 'punctuation',
+    pattern: /\{/,
+    inside: {
+      name: 'inside-brace',
+      lexer: () => LEXER_BALANCE_BRACES
+    }
+  },
+  {
+    name: 'punctuation',
+    pattern: /\}/,
+    final: true
+  }
+], 'balance-braces');
+```
+
+Because `LEXER_BALANCE_BRACES` is trying to find the _balanced_ `}` to go with the `{` that has just been consumed, it knows that any new `{` it finds will start a new level of depth. So when those happen, it hands off to a new instance of _itself_. This can go to an arbitrary depth, with each invocation of `LEXER_BALANCE_BRACES` in charge of one specific level of brace depth.
+
 
 ### Advanced features
 
@@ -218,14 +244,13 @@ Once we know what portion of the substring contains a single instance of JSX, we
 
 ### Why not use the lexer to highlight?
 
-It’s a shame not to do anything with that syntax tree that was returned by the root lexer, so in the future I plan to reuse that content when performing syntax highlighting.
+It’s a shame not to do anything with that syntax tree that was returned by the root lexer, so there is _preliminary_ support for generating HTML straight from that tree.
 
-Actually, the future is now. Right now I’ve got this working as a proof-of-concept. These are the two problems that need to be solved, and how I’ve tentatively solved them:
-
+These are the two problems that need to be solved, and how I’ve tentatively solved them:
 
 #### Tree structure
 
-Right now, the hierarchy of the syntax tree recapitulates the hierarchy of lexers and sub-lexers and how they delegated to one another. That grouping doesn’t contain any inherent semantic information.
+Right now, the hierarchy of the syntax tree recapitulates the hierarchy of lexers and sub-lexers and how they delegated to one another. That grouping doesn’t _necessarily_ have any semantic value.
 
 An ideal tree would have hierarchy, but only where the hierarchy adds meaning. For instance, a lexer whose purpose is to parse JSX tag contents doesn’t want to wrap everything it parses in `<span class="jsx-tag-contents">`, but a lexer whose purpose is to parse a string in its entirety surely wants to wrap its contents in `<span class="string">`.
 
@@ -233,7 +258,9 @@ This cries out for a permanent solution, but for now I’m having luck with flat
 
 When converting the rebuilt tree to HTML, Daub will emit `spans` with `class` attributes that match the lexer’s `name` properties (except for `raw: true` rules), but you can override this with the `scopes` property if the rule’s name isn’t a suitable value for `class`.
 
-The `renderLexerTree` function from `Utils` will convert lexer output to HTML, but you’ll probably want to use `balanceAndHighlightByLexer` instead. It works like `balanceByLexer`, but returns both a string index and the HTML serialization of the lexer tree. Since the `index` callback passes a `Context`, you can use that to store the HTML output and retrieve it in an `after` callback:
+The `renderLexerTree` function from `Utils` will convert lexer output to HTML, but you’ll probably want to use `balanceAndHighlightByLexer` instead. It works like `balanceByLexer`, but returns both a string index and the HTML serialization of the lexer tree.
+
+This is ideal because you still have to use the lexer to determine the bounds of the match, so it makes the most sense to render the HTML at the same time to prevent wasted work. Since the `index` callback passes a `Context`, you can use that to store the HTML output and retrieve it in an `after` callback:
 
 ```js
 let JSX_TAG_ROOT = new Grammar({

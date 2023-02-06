@@ -387,7 +387,7 @@ This hypothetical function is available in Daub in the `Utils` module. It can ba
 
 ### Lexer (an alternate approach)
 
-Another the thing I like about TextMate grammars is demonstrated in the “Context awareness” snippet above.
+Another thing I like about TextMate grammars is demonstrated in the “Context awareness” snippet above.
 
 Notice how they can describe a beginning token and an ending token, and can then enforce that only certain patterns are allowed within. The best aspect of this is that, once the `begin` pattern matches, the internal `patterns` are attempted _before_ the `end` pattern. The `end` pattern doesn’t need a lookbehind to make sure it isn’t consuming an escaped backtick.
 
@@ -407,9 +407,11 @@ function Badge (items) {
 }
 ```
 
-This is contrived, but bear with me. The `items > 1` comparison on line 4 is a problem for Daub; I’m not sure it’s possible in the general case to write a regular expression that would match all of `<Pluralize prefix="Your total -->" plural={items > 1}>`.
+This is contrived, but bear with me. The `>`s in the two attribute values  on line 4 are a problem for Daub; I’m not sure it’s possible in the general case to write a regular expression that would match all of `<Pluralize prefix="Your total -->" plural={items > 1}>`.
 
-A more sensible way to approach this would be something like this:
+A more sensible way to approach this would be something like this: recognize that a `>` character will end the JSX tag, but that other characters we see along the way would put us into modes in which `>` means something else. Make it so that we know how those modes begin and end. Now we can return the first occurrence of `>` that occurs when we’re in JSX mode, rather than string mode or interpolation mode.
+
+Or, more exactly:
 
 1. Encounter the `<` on line 4; recognize that it’s opening a JSX tag.
 2. Start looking for a `>` to end the opening tag, but also look for other patterns which would signify a shift in parser mode.
@@ -469,9 +471,9 @@ let JS_MAIN = new Grammar({
     //   '3': 'punctuation string-end'
     // },
     before (m, context) {
-      if (m[1]) { m[1] = wrap('punctuation string-start'); }
+      if (m[1]) { m[1] = wrap(m[1], 'punctuation string-start'); }
       if (m[2]) { m[2] = JS_INSIDE_TEMPLATE_STRINGS.parse(m[2], context); }
-      if (m[3]) { m[3] = wrap('punctuation string-end'); }
+      if (m[3]) { m[3] = wrap(m[3], 'punctuation string-end'); }
     }
   }
 });
@@ -479,13 +481,13 @@ let JS_MAIN = new Grammar({
 
 Here, the work done in the `before` callback is 100% equivalent to the work described by the commented-out `captures`.
 
-Where does `context` come in? `Daub.Context` is a thin wrapper class around `Map`. Its purpose is to make parsing stateful across grammars. The `template-string` rule above delegates part of its parsing task to another grammar, but when it calls `JS_INSIDE_TEMPLATE_STRINGS.parse`, it passes the existing `context` instance as the second argument so that the latter grammar can see any relevant state.
+Where does `context` come in? `Context` is a thin wrapper class around `Map`. Its purpose is to make parsing stateful across grammars. The `template-string` rule above delegates part of its parsing task to another grammar, but when it calls `JS_INSIDE_TEMPLATE_STRINGS.parse`, it passes the existing `context` instance as the second argument so that the latter grammar can see any relevant state.
 
 ### VerboseRegExp
 
 Unlike some other languages, JavaScript has no built-in “verbose” or “extended” regular expression syntax in which literal whitespace is ignored and comments are allowed. And because of the constraints we’re under when writing patterns in Daub grammars, annotated patterns are often sorely needed.
 
-But building regular expressions out of strings involves having to double-escape every backslash in your regular expression. `/\}/` becomes `new RegExp("\\}")`. Matching a literal escape sequence like "\t" becomes `/\\t/` in a regex literal, but `new RegExp("\\\\t")` in its string form. I hate it.
+But building regular expressions out of strings involves having to double-escape every backslash in your regular expression. `/\}/` becomes `new RegExp("\\}")`. Matching a literal escape sequence like `\t` becomes `/\\t/` in a regex literal, but `new RegExp("\\\\t")` in its string form. I hate it.
 
 ES6’s tagged template literals offer a way out: they can access the “raw” form of the string in which every backslash is interpreted as a literal backslash, rather than an escape character:
 
@@ -546,58 +548,6 @@ But this package is meant to be run in the browser, and secondarily in server-si
 
 Daub uses [Rollup][] to generate builds. Rollup can generate a UMD build for browsers, a CommonJS build for Node contexts, and an ESM build for ESM projects that want to import it directly.
 
-### All, none, or some
-
-This is complicated enough already. But most of my headaches have come from the packaging of the built-in grammars themselves. The grammars that exist now are the ones that _I’ve_ needed; importing every single one works well enough for me, but the average consumer of this library would certainly want to pick and choose.
-
-How do I let the user pick and choose? A few options come to mind:
-
-* Though I admire Prism a great deal, I’d do anything to avoid [its download experience](https://prismjs.com/download.html) — check some boxes and have a black box dumped into your browser for downloading.
-* Publishing each grammar as its own package, thereby turning this repo into a [monorepo](https://github.com/lerna/lerna#about), is a possibility, but I don’t like how it complicates things for the user.
-* Publishing each grammar as a direct import, such that one can do `import Ruby from 'daub/grammars/ruby'`, would be ideal. But I haven’t figured out how to do that while _also_ exporting the right version for the consumer’s environment — CommonJS by default, but ESM for loaders like Rollup that are ESM-aware.
-
-One of the reasons why Rollup is compelling to me is that it offers a theoretical fourth option: export everything, let the consumer import what they want in their own code, and then rely on Rollup to tree-shake the rest out of their built JavaScript.
-
-But in order to get _this_ to work, I think I’d have to do one of two things.
-
-I could export _everything_ as a flat list from the main entry point:
-
-```js
-// import * as grammars from './grammars/';
-
-import JavaScriptGrammar from './grammars/javascript';
-import PythonGrammar from './grammars/python';
-import RubyGrammar from './grammars/ruby';
-// et cetera
-
-import Grammar from './grammar';
-import Lexer from './lexer';
-import Highlighter from './highlighter';
-// et cetera
-
-export {
-  Grammar,
-  Lexer,
-  Highlighter,
-  JavaScriptGrammar,
-  PythonGrammar,
-  RubyGrammar,
-  // ...
-};
-```
-
-I _think_ this would make tree-shaking possible, but I hate the idea of dumping every grammar (and every possible future built-in grammar) into the top-level namespace.
-
-Instead of doing this, I could have a separate entry for the grammars:
-
-```js
-import * as grammars from './grammars/';
-// Not sure this is valid export syntax, but you get the idea.
-export default grammars;
-```
-
-But, again, that’d have to be exposed to consumers as a different import target. I know how to make a single entry point available in both CommonJS and ESM: define both `main` and `module` in your `package.json`, and point them to the different respective files. But, [despite this article](https://levelup.gitconnected.com/code-splitting-for-libraries-bundling-for-npm-with-rollup-1-0-2522c7437697), I haven’t been able to get the same thing to work with multiple entry points.
-
 ### In the browser
 
 The API for a grammar is dead simple: call its `parse` method with some text. Some other text is returned.
@@ -614,11 +564,11 @@ In extreme cases, like highlighting files of arbitrary length, you’ll always r
 
 ### Server-side rendering
 
-I haven’t tried this and don’t know any of the pitfalls and possibilities. Let me know what you discover.
+It occurs to me that you could use Daub as an alternative to Prism when doing server-side highlighting for something like [Eleventy](https://www.11ty.dev/) or [Gatsby](https://www.gatsbyjs.com/), but I haven’t tried this and don’t know any of the pitfalls and possibilities. Let me know what you discover.
 
 ### Web worker
 
-I’ve tried to make the web worker case a bit more straightforward by exporting a file that’s suitable for loading in a web worker (`dist/daub.worker.umd.js`). It pairs with `daub.AsyncHighlighter`, a class meant to be an almost-drop-in replacement for `daub.Highlighter` and meant to be run in the main window. Together the two handle the communication plumbing.
+I’ve tried to make the web worker case a bit more straightforward by exporting a file that’s suitable for loading in a web worker (`dist/daub.worker.umd.js`). It pairs with `AsyncHighlighter`, a class meant to be an almost-drop-in replacement for `Highlighter` and meant to be run in the main window. Together the two handle the communication plumbing.
 
 If you take this approach, you’ll want to import `AsyncHighlighter` _and nothing else_ in your main JavaScript bundle. There’s no corresponding UMD build, but if you use Rollup and don’t import anything else, then it… should… work? Again: let me know what you discover, hypothetical reader?
 

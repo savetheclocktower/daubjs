@@ -3,12 +3,8 @@
 
 Plugins are simple. They’re just functions that listen for the events that Daub emits during the highlighting process.
 
-To use them, import the `PLUGINS` named export:
-
 ```js
-import { PLUGINS } from 'daub';
-
-const { WhitespaceNormalizer } = PLUGINS;
+import WhitespaceNormalizer from 'daub/plugins/whitespace-normalizer';
 
 // Call the function to enable it…
 let done = WhitespaceNormalizer();
