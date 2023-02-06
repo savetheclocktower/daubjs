@@ -1,4 +1,4 @@
-/* global module */
+/* eslint-env node */
 module.exports = {
   "env": {
     "browser": true,
@@ -9,8 +9,8 @@ module.exports = {
   ],
   "extends": "eslint:recommended",
   "parserOptions": {
-    "ecmaVersion": 2018,
-    "sourceType": "module"
+    "ecmaVersion": 2022,
+    "sourceType": "module",
   },
   "rules": {
     "indent": [

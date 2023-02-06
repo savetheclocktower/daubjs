@@ -10,6 +10,10 @@ function inWebWorker () {
   return typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
 }
 
+function supportsCustomEvent () {
+  return typeof CustomEvent !== 'undefined';
+}
+
 // So that I don't have to pull in an `Array#flat` polyfill.
 function flatten (array) {
   let result = [];
@@ -148,7 +152,7 @@ function balanceByLexer (text, lexer, context) {
     performance.mark('daub-lexer-after');
     performance.measure('daub-lexer-before', 'daub-lexer-after');
   }
-  if (!inWebWorker()) {
+  if (!inWebWorker() && supportsCustomEvent()) {
     let event = new CustomEvent('daub-lexer-time', { bubbles: true, detail: end - start });
     document.dispatchEvent(event);
   }
@@ -167,7 +171,7 @@ function balanceAndHighlightByLexer (text, lexer, context) {
     performance.mark('daub-lexer-after');
     performance.measure('daub-lexer-before', 'daub-lexer-after');
   }
-  if (!inWebWorker()) {
+  if (!inWebWorker() && supportsCustomEvent()) {
     let event = new CustomEvent('daub-lexer-time', { bubbles: true, detail: end - start });
     document.dispatchEvent(event);
   }
@@ -223,7 +227,6 @@ function renderLexerTree (obj) {
   let flat = flattenTree(obj);
   return flat.map((t) => {
     let result;
-    console.log('tee:', t);
     if (isString(t)) { return t; }
     if (t.open) {
       result = isString(t.open) ? `<span class="${t.open}">` : '';

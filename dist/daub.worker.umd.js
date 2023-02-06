@@ -1,8 +1,7 @@
-(function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-  typeof define === 'function' && define.amd ? define(['exports'], factory) :
-  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.daub = {}));
-})(this, (function (exports) { 'use strict';
+(function (factory) {
+  typeof define === 'function' && define.amd ? define(factory) :
+  factory();
+})((function () { 'use strict';
 
   // Coerces `null` and `undefined` to empty strings; uses default coercion on
   // everything else.
@@ -144,50 +143,6 @@
   Template.interpolate = function (string, object) {
     return new Template(string).evaluate(object);
   };
-
-  /* eslint-env commonjs */
-
-  // `VerboseRegExp`s get transpiled to regular expression literals during builds
-  // in the interests of file size.
-
-  // Rollup should still do the right thing so that VerboseRegExp is available to
-  // custom grammars as a runtime import.
-
-  function isEscapedHash(line, index) {
-    return index === 0 ? false : line.charAt(index - 1) === '\\';
-  }
-  function trimCommentsFromLine(line) {
-    let hashIndex = -1;
-    do {
-      hashIndex = line.indexOf('#', hashIndex + 1);
-    } while (hashIndex > -1 && isEscapedHash(line, hashIndex));
-    if (hashIndex > -1) {
-      line = line.substring(0, hashIndex);
-    }
-    line = line.trim();
-    return line;
-  }
-
-  // A tagged template literal that allows you to define a verbose regular
-  // expression using backticks. Literal whitespace is ignored, and you can use
-  // `#` to mark comments. This makes long regular expressions way easier for
-  // humans to read and write.
-  //
-  // Escape sequences _do not_ need to be double-escaped, with one exception:
-  // capture group backreferences like \5 need to be written as \\5, because JS
-  // doesn't understand that syntax outside of a literal RegExp.
-  function VerboseRegExp(str) {
-    let raw = str.raw[0];
-    let pattern = raw.split(/\n/).map(trimCommentsFromLine).join('').replace(/\s/g, '');
-
-    // Take (e.g.) `\\5` and turn it into `\5`. Because of a spec bug, we can't
-    // do this with raw strings.
-    pattern = pattern.replace(/(\\)(\\)(\d+)/g, (m, _, bs, d) => {
-      return `${bs}${d}`;
-    });
-    let result = new RegExp(pattern);
-    return result;
-  }
 
   function inWebWorker() {
     // eslint-disable-next-line no-undef
@@ -415,20 +370,6 @@
       return result;
     }).join('');
   }
-
-  var utils = /*#__PURE__*/Object.freeze({
-    __proto__: null,
-    VerboseRegExp: VerboseRegExp,
-    balance: balance,
-    balanceAndHighlightByLexer: balanceAndHighlightByLexer,
-    balanceByLexer: balanceByLexer,
-    compact: compact,
-    escapeRegExp: escapeRegExp,
-    gsub: gsub,
-    regExpToString: regExpToString,
-    serializeLexerFragment: serializeLexerFragment,
-    wrap: wrap
-  });
 
   /**
    * A wrapper class around `Map` used to pass state across grammars and lexers.
@@ -774,491 +715,265 @@
     return new Template(contents);
   };
 
-  const makeDefaultUid = () => Math.random().toString(16).slice(2);
+  /* eslint-disable no-console */
 
-  /**
-   * @abstract
-   * @private
-   */
-  class AbstractHighlighter {
-    constructor() {
-      this.elements = [];
-    }
-
-    // PRIVATE
-    // =======
-
-    _fire(name, element) {
-      let detail = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-      let opts = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
-      detail.highlighter = this;
-      let event = new CustomEvent(`daub-${name}`, {
-        bubbles: true,
-        cancelable: true,
-        ...opts,
-        detail
-      });
-      element.dispatchEvent(event);
-      return event;
-    }
-    _updateElement(element, text, language) {
-      let doc = element.ownerDocument;
-      let range = doc.createRange();
-
-      // Turn the string into a DOM fragment so that it can more easily be
-      // acted on by plugins.
-      let fragment = range.createContextualFragment(text);
-      let meta = {
-        element,
-        language,
-        fragment
-      };
-      /**
-       * Event that signifies that the element's content is about to be replaced
-       * with highlighted content. Event handlers can read or mutate the content
-       * that will be placed onto the page.
-       *
-       * Can be cancelled with `event.preventDefault()`.
-       *
-       * @event daub-will-highlight
-       * @memberof Highlighter
-       * @property {Element} element The element that will receive the
-       *   highlighting.
-       * @property {string} language The name of the grammar that performed the
-       *   parsing.
-       * @property {DocumentFragment} fragment A DOM fragment representation of
-       *   the content that will be placed onto the page. Can be mutated in place
-       *   by a handler or replaced entirely.
-       */
-
-      /**
-       * Event that signifies that the element's content is about to be replaced
-       * with highlighted content. Event handlers can read or mutate the content
-       * that will be placed onto the page.
-       *
-       * Can be cancelled with `event.preventDefault()`.
-       *
-       * @event daub-will-highlight
-       * @memberof AsyncHighlighter
-       * @see Highlighter.event:daub-will-highlight
-       *
-       */
-      let event = this._fire('will-highlight', element, meta);
-
-      // Allow event handlers to cancel the highlight.
-      if (event.defaultPrevented) {
-        return;
-      }
-      if (event.detail.fragment) {
-        fragment = event.detail.fragment;
-      }
-      element.innerHTML = '';
-      element.appendChild(fragment);
-    }
-
-    // PUBLIC
-    // ======
-
-    /**
-     * Add an element to the highlighter.
-     * @param {Element} element
-     * @memberof AsyncHighlighter.prototype
-     */
-
-    /**
-      * Add an element to the highlighter.
-      * @param {Element} element
-      * @memberof Highlighter.prototype
-      */
-    addElement(element) {
-      if (this.elements.indexOf(element) > -1) {
-        return;
-      }
-      this.elements.push(element);
-    }
-  }
-
-  /**
-   * A class that applies syntax highlighting to certain elements on the page by
-   * communicating with a web worker.
-   *
-   * @param {Worker} worker A web worker.
-   * @param {Object} [options={}] Options.
-   */
-  class AsyncHighlighter extends AbstractHighlighter {
-    constructor(worker) {
-      let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-      super();
-      this.worker = worker;
-      if (!(this.worker instanceof Worker)) {
-        throw new TypeError(`Invalid "worker" option.`);
-      }
-      this._setupWorker();
-      this.uid = 0;
-      this._callbacks = {};
-      this.options = {
-        ...AsyncHighlighter.DEFAULT_OPTIONS,
-        ...options
-      };
-    }
-
-    // PRIVATE
-    // =======
-
-    _getLanguage(element) {
-      return element.getAttribute('data-language') || element.className;
-    }
-    _getSelector() {
-      let rawSelector = this.options.selector;
-      if (typeof rawSelector === 'string') {
-        rawSelector = [rawSelector];
-      }
-      return rawSelector.map(s => `${s}:not([data-daub-highlighted])`).join(', ');
-    }
-    _scan(node) {
-      let selector = this._getSelector();
-      let nodes = Array.from(node.querySelectorAll(selector));
-      if (!nodes || !nodes.length) {
-        return Promise.resolve([]);
-      }
-      nodes.length;
-      let promises = nodes.map(element => {
-        let uid;
-        if (element.hasAttribute('data-daub-uid')) {
-          uid = element.getAttribute('data-daub-uid');
-        } else {
-          uid = this.uid;
-          element.setAttribute('data-daub-uid', this.uid++);
-        }
-        let source = element.innerHTML;
-        let language = this._getLanguage(element);
-        return this.parse(source, language, uid).then(_ref => {
-          let [parsed, element] = _ref;
-          this._updateElement(element, parsed, language);
-          element.setAttribute('data-daub-highlighted', 'true');
-          /**
-           * Event that signifies that highlighting has occurred on a given
-           * element.
-           * @event daub-highlighted
-           * @memberof AsyncHighlighter
-           * @type {Object}
-           * @property element The element which received the highlighting.
-           * @property language The name of the grammar which performed the
-           *   highlighting.
-           */
-          this._fire('highlighted', element, {
-            element,
-            language
-          }, {
-            cancelable: false
-          });
-          return element;
-        });
-      });
-      return Promise.all(promises);
-    }
-    _handleMessage(e) {
-      let {
-        id,
-        source
-      } = e.data;
-      let element;
-      for (let el of this.elements) {
-        element = el.querySelector(`[data-daub-uid="${id}"]`);
-        if (element) {
-          break;
-        }
-      }
-      let callback = this._callbacks[id];
-      delete this._callbacks[id];
-      if (!callback) {
-        // TODO: This shouldn't happen. Worth throwing?
-        return;
-      }
-      callback([source, element]);
-    }
-    _setupWorker() {
-      this.worker.onmessage = e => this._handleMessage(e);
-    }
-
-    // PUBLIC
-    // ======
-
-    /**
-     * Parses arbitrary text using a single grammar name.
-     *
-     * You usually won't need to call this directly; it's called by
-     * `AsyncHighlighter#highlight`. You may, though, use it if you want to
-     * request highlighting of text that isn't in the DOM, as long as you
-     * know the name of the grammar you'd like to use.
-     *
-     * If the worker doesn't recognize the grammar name, it will return the
-     * original text unmodified.
-     *
-     * @param   {string} text The raw source to highlight.
-     * @param   {string} language The grammar name with which to highlight.
-     * @param   {string} [uid=null] A unique ID to represent the job.
-         Optional; if missing, one will be generated at random.
-     * @returns {Promise} Resolves with a two-item array: the highlighted
-     *   source, and any element associated with this job. If you call this
-     *   method manually, the second item will be `undefined`.
-     */
-    parse(text) {
-      let language = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-      let uid = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
-      if (!language) {
-        throw new Error(`Must specify a language!`);
-      }
-      if (!uid) {
-        uid = makeDefaultUid();
-      }
-      return new Promise((resolve, reject) => {
-        this._callbacks[uid] = resolve;
-        this.worker.postMessage({
-          type: 'parse',
-          text,
-          language,
-          id: uid
-        });
-      });
-    }
-
-    /**
-     * Highlight elements that need highlighting.
-     *
-     * You can call this method as often as you like; each time it's called, it'll
-     * look for elements that it hasn't already handled (i.e., because they
-     * weren't yet on the page).
-     *
-     * To force `Highlighter` to re-highlight an element, remove the element's
-     * `data-daub-highlighted` attribute, then call `Highlighter#highlight`
-     * again. You should not do this unless you have also completely replaced
-     * the element's contents.
-     *
-     * @fires AsyncHighlighter.daub-will-highlight
-     * @fires AsyncHighlighter.daub-highlighted
-     *
-     * @returns {Promise} A promise that resolves after all elements that may
-     *   need highlighting have been highlighted. Resolves with an array of
-     *   affected nodes.
-     */
-    highlight() {
-      let promises = this.elements.map(el => this._scan(el));
-      return Promise.all(promises).then(results => results.flat());
-    }
-  }
-  AsyncHighlighter.DEFAULT_OPTIONS = {
-    selector: [`code[data-language]`, `code[class]`]
+  let levels = {
+    DEBUG: 0,
+    INFO: 1,
+    LOG: 2,
+    WARN: 3,
+    ERROR: 4
   };
-
-  /**
-   * A class that applies syntax highlighting to certain elements on the page.
-   * @extends AbstractHighlighter
-   */
-  class Highlighter extends AbstractHighlighter {
-    /**
-     * Creates a `Highlighter` instance.
-     *
-     * @param {Object} [options={}] Options.
-     * @param {Function} [options.customSelector] A function that, when given the
-     *   name of a grammar, should return a CSS selector that describes the
-     *   elements which should be highlighted by that grammar. Defaults to a
-     *   function that, when called with `foo`, returns `code.foo,
-     *   code[data-language-"foo"]`.
-     *
-     *   In other words: by default, `<code class="foo">` and
-     *   `<code data-language="foo">` will tell the highlighter to use the grammar
-     *   named “foo” to highlight the code inside.
-     *
-     *   Called with two parameters: the name of the grammar and the highlighter's
-     *   `options` object. The latter is given so you can take into account the
-     *   value of `classPrefix` if you so choose.
-     *
-     * @param {string} [options.classPrefix=''] A string that is prepended to any
-     *   `class` value when determining the selector. Default is an empty string.
-     *   If the value were `language-`, then `<code class="language-foo">` would
-     *   trigger highlighting for the grammar named "foo". Does not affect the
-     *   `[data-language]` aspect of the selector.
-     *
-     *   The default value for `customSelector` takes `classPrefix` into account.
-     *   If you write your own `customSelector` function, it's up to you whether
-     *   to incorporate this value into your logic.
-     */
+  class Logger {
     constructor() {
-      let options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-      super();
-      this.grammars = [];
-      this._grammarTable = {};
-      this.options = {
-        ...Highlighter.DEFAULT_OPTIONS,
-        ...options
-      };
+      let tag = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+      this.tag = tag;
     }
-    _selectorsForGrammar(grammar) {
-      return grammar.names.map(name => {
-        let selectors = this.options.customSelector(name, this.options);
-        if (typeof selectors === 'string') {
-          selectors = [selectors];
-        }
-        return selectors.map(s => `${s}:not([data-daub-highlighted])`).join(', ');
-      }).join(', ');
+    _tag() {
+      return `[${this.tag}]`;
     }
-    _scan(node) {
-      this.grammars.forEach(grammar => {
-        let selector = this._selectorsForGrammar(grammar);
-        let nodes = node.querySelectorAll(selector);
-        if (!nodes || !nodes.length) {
-          return;
-        }
-        Array.from(nodes).forEach(el => {
-          if (el.hasAttribute('data-daub-highlighted')) {
-            return;
-          }
-          let context = new Context({
-            highlighter: this
-          });
-          let source = el.innerHTML;
-          if (grammar.options.encode) {
-            source = source.replace(/</g, '&lt;');
-          }
-          let parsed = this.parse(source, grammar, context);
-          this._updateElement(el, parsed, grammar);
-          el.setAttribute('data-daub-highlighted', 'true');
-          let meta = {
-            element: el,
-            grammar
-          };
-          /**
-           * Event that signifies that highlighting has occurred on a given
-           * element.
-           * @event daub-highlighted
-           * @memberof Highlighter
-           * @type {Object}
-           * @property element The element which received the highlighting.
-           * @property language The name of the grammar which performed the
-           *   highlighting.
-           */
-          this._fire('highlighted', el, meta, {
-            cancelable: false
-          });
-        });
-      });
+    debug() {
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+      console.debug(this._tag(), ...args);
     }
-
-    /**
-     * Highlight elements that need highlighting.
-     *
-     * You can call this method as often as you like; each time it's called, it'll
-     * look for elements that it hasn't already handled (i.e., because they
-     * weren't yet on the page).
-     *
-     * To force `Highlighter` to re-highlight an element, remove the element's
-     * `data-daub-highlighted` attribute, then call `Highlighter#highlight` again.
-     * You should not do this unless you have also completely replaced the
-     * element's contents.
-     */
-    highlight() {
-      this.elements.forEach(el => this._scan(el));
+    info() {
+      for (var _len2 = arguments.length, args = new Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+        args[_key2] = arguments[_key2];
+      }
+      console.info(this._tag(), ...args);
     }
-    _fire(name, element, detail) {
-      let opts = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
-      Object.assign(detail, {
-        highlighter: this
-      });
-      let options = Object.assign({
-        bubbles: true,
-        cancelable: true
-      }, opts, {
-        detail
-      });
-      let event = new CustomEvent(`daub-${name}`, options);
-      element.dispatchEvent(event);
-      return event;
+    log() {
+      for (var _len3 = arguments.length, args = new Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
+        args[_key3] = arguments[_key3];
+      }
+      console.log(this._tag(), ...args);
     }
-
-    // PUBLIC
-    // ======
-
-    addElement(element) {
-      if (this.elements.indexOf(element) > -1) {
-        return;
+    warn() {
+      for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
+        args[_key4] = arguments[_key4];
       }
-      this.elements.push(element);
+      console.warn(this._tag(), ...args);
     }
-
-    /**
-     * Add a grammar to the list of grammars that the highlighter should use.
-     *
-     * @param {Grammar|string} grammar The grammar or its name. If a name is
-     *   given, the grammar must already be known to Daub. Built-in grammars are
-     *   always known about; for custom grammars, call `Grammar.register` after
-     *   creating it to make Daub aware of its name.
-     */
-    addGrammar(grammar) {
-      if (typeof grammar === 'string') {
-        grammar = Grammar.find(grammar);
+    group() {
+      for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+        args[_key5] = arguments[_key5];
       }
-      if (grammar === null || !(grammar instanceof Grammar)) {
-        throw new TypeError(`Invalid "grammar" argument.`);
-      }
-      if (!grammar.name) {
-        throw new Error(`Can't register a grammar without a name.'`);
-      }
-      if (this.grammars.indexOf(grammar) > -1) {
-        return;
-      }
-      this.grammars.push(grammar);
-      grammar.names.forEach(n => this._grammarTable[n] = grammar);
+      console.group(this._tag(), ...args);
     }
-
-    /**
-     * Parse text using a grammar.
-     *
-     * @param {string} text The text to parse.
-     * @param {string|Grammar} [grammar=null] The grammar to use. If a string,
-     *   must be the name of a grammar that has been made known to this
-     *   highlighter via `addGrammar`.
-     * @param {[type]} [context=null] The instance of `Context` to use. If parsing
-     *   a language within another language, pass the instance of `Context` that
-     *   is already available to you; otherwise omit this argument and a new
-     *   instance will be created. You'll hardly ever have to create a `Context`
-     *   instance yourself.
-     * @returns {string} Parsed text. If a grammar is specified by name and this
-     *   instance does not recognize it, the original text will be returned.
-     */
-    parse(text) {
-      let grammar = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-      let context = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
-      if (typeof grammar === 'string') {
-        // If the user passes a string and we can't find the grammar, we should
-        // fail silently instead of throwing an error.
-        grammar = this._grammarTable[grammar];
-        if (!grammar) {
-          return text;
-        }
-      } else if (!grammar) {
-        throw new Error(`Must specify a grammar!`);
+    groupCollapsed() {
+      for (var _len6 = arguments.length, args = new Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
+        args[_key6] = arguments[_key6];
       }
-      if (!context) {
-        context = new Context({
-          highlighter: this
-        });
-      }
-      let parsed = grammar.parse(text, context);
-      return parsed;
+      console.groupCollapsed(this._tag(), ...args);
+    }
+    groupEnd() {
+      console.groupEnd();
     }
   }
-  Highlighter.DEFAULT_OPTIONS = {
-    classPrefix: '',
-    // Given a grammar, returns a selector that would match HTML elements meant
-    // to be highlighted with that grammar.
-    //
-    // NOTE: If the selector has several comma-separated components, return an
-    // _array_ of parts so that the parts can be concatenated onto more easily.
-    customSelector: (grammarName, options) => {
-      return [`code.${options.classPrefix}${grammarName}`, `code[data-language="${grammarName}"]`];
+  for (let label in levels) {
+    Logger[label] = levels[label];
+  }
+
+  let PARAMETERS$4 = new Grammar({
+    'meta: parameter': {
+      pattern: /(?:\b|^)((?:(?:[A-Za-z_$][\w\d]*)\s)*)(\s*)([a-zA-Z_$:][\w\d]*)(?=,|$)/,
+      captures: {
+        '1': () => STORAGE,
+        '3': 'variable variable-parameter'
+      }
     }
-  };
+  });
+  let ESCAPES$1 = new Grammar({
+    escape: {
+      pattern: /\\./
+    }
+  });
+  const DECLARATIONS = new Grammar({
+    'meta: function': {
+      pattern: /([A-Za-z_$]\w*)(\s+)([a-zA-Z_$:]\w*)(\s*)(\()(.*)(\))(\s*)(?={)/,
+      index(match) {
+        let parenIndex = balance(match, ')', '(', {
+          startIndex: match.indexOf('(')
+        });
+        // Find the index just before the opening brace after the parentheses are
+        // balanced.
+        return match.indexOf('{', parenIndex) - 1;
+      },
+      // replacement: "<b>#{1}#{2}#{3}#{4}#{5}#{6}#{7}#{8}</b>",
+      captures: {
+        '1': 'storage storage-type storage-return-type',
+        '3': 'entity',
+        '6': () => PARAMETERS$4
+      }
+    },
+    'meta: bare declaration': {
+      pattern: /\b([A-Za-z_$][\w\d]*)(\s+)([A-Za-z_$][\w\d]*)(\s*)(?=;)/,
+      captures: {
+        '1': 'storage storage-type',
+        '3': 'variable'
+      }
+    },
+    'meta: declaration with assignment': {
+      pattern: /\b([A-Za-z_$][\w\d]*)(\s+)([A-Za-z_$][\w\d]*)(\s*)(=)/,
+      captures: {
+        '1': 'storage storage-type',
+        '3': 'variable',
+        '5': 'operator'
+      }
+    },
+    'meta: array declaration': {
+      pattern: /\b([A-Za-z_$][\w\d]*)(\s+)([A-Za-z_$][\w\d]*)(\[)(\d+)(\])/,
+      captures: {
+        '1': 'storage storage-type',
+        '3': 'variable',
+        '4': 'punctuation',
+        '5': 'number',
+        '6': 'punctuation'
+      }
+    },
+    'meta: declaration with parens': {
+      pattern: /\b([A-Za-z_$][\w\d]*)(\s+)([A-Za-z_$][\w\d]*)(\s*)(\()([\s\S]*)(\))(;)/,
+      index(match) {
+        let balanceIndex = balance(match, ')', '(') + 1;
+        return match.indexOf(';', balanceIndex);
+      },
+      captures: {
+        '1': 'storage storage-type',
+        '3': 'variable',
+        '5': 'punctuation',
+        '6': () => VALUES$5,
+        '7': 'punctuation'
+      }
+    },
+    'meta: class declaration': {
+      pattern: /\b(class|enum)(\s+)([A-Za-z][A-Za-z0-9:_$]*)(\s*)({)/,
+      captures: {
+        '1': 'storage storage-type',
+        '3': 'entity entity-class'
+      }
+    }
+  });
+  const VALUES$5 = new Grammar({
+    'constant': {
+      pattern: /\b[A-Z_]+\b/
+    },
+    'lambda': {
+      pattern: /(\[\])(\s*)(\()([\s\S]*)(\))(\s*)({)([\s\S]*)(})/,
+      index(match) {
+        return balance(match, '}', '{', {
+          startIndex: match.indexOf('{')
+        });
+      },
+      wrapReplacement: true,
+      captures: {
+        '1': 'punctuation',
+        '3': 'punctuation',
+        '4': () => PARAMETERS$4,
+        '5': 'punctuation',
+        '7': 'punctuation',
+        '8': () => MAIN$6,
+        '9': 'punctuation'
+      }
+    },
+    'constant constant-boolean': {
+      pattern: /\b(?:true|false)\b/
+    },
+    'string string-single-quoted': {
+      // In capture group 2 we want zero or more of:
+      // * any non-apostrophes and non-backslashes OR
+      // * an even number of consecutive backslashes OR
+      // * any backslash-plus-apostrophe pair.
+      pattern: /(')((?:[^'\\]|\\\\|\\')*)(')/,
+      wrapReplacement: true,
+      captures: {
+        '2': () => ESCAPES$1
+      }
+    },
+    'string string-double-quoted': {
+      // In capture group 2 we want zero or more of:
+      // * any non-quotes and non-backslashes OR
+      // * an even number of consecutive backslashes OR
+      // * any backslash-plus-quote pair.
+      pattern: /(")((?:[^"\\]|\\[rnt]|\\\\|\\")*)(")/,
+      wrapReplacement: true,
+      captures: {
+        '2': () => ESCAPES$1
+      }
+    },
+    'number': {
+      pattern: /\b0x[\da-f]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?/i
+    }
+  });
+  const COMMENTS$1 = new Grammar({
+    comment: {
+      pattern: /(\/\/[^\n]*(?=\n|$))|(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/
+    }
+  });
+  const STORAGE = new Grammar({
+    'storage storage-type': {
+      pattern: /\b(?:u?int(?:8|16|36|64)_t|int|long|float|double|char(?:16|32)_t|char|class|bool|wchar_t|volatile|virtual|extern|mutable|const|unsigned|signed|static|struct|template|private|protected|public|mutable|volatile|namespace|struct|void|short|enum)/
+    }
+  });
+  const MACRO_VALUES = new Grammar({}).extend(COMMENTS$1, VALUES$5);
+  const MACROS = new Grammar({
+    'macro macro-define': {
+      pattern: /^(\#define)(\s+)(\w+)(.*?)$/,
+      replacement: compact(`
+      <span class="keyword keyword-macro">#{1}</span>#{2}
+      <span class="entity entity-macro">#{3}</span>
+      #{4}
+    `),
+      captures: {
+        '1': 'keyword keyword-macro',
+        '3': 'entity entity-macro',
+        '4': () => MACRO_VALUES
+      }
+    },
+    'macro macro-include': {
+      pattern: /^(\#include)(\s+)("|<|&lt;)(.*?)("|>|&gt;)(?=\n|$)/,
+      replacement: compact(`
+      <span class="keyword keyword-macro">#{1}</span>#{2}
+      <span class="string string-include">
+        <span class="punctuation">#{3}</span>
+        #{4}
+        <span class="punctuation">#{5}</span>
+      </span>
+    `)
+    },
+    'macro macro-with-one-argument': {
+      pattern: /(\#(?:ifdef|ifndef|undef|if))(\s+)(\w+)/,
+      captures: {
+        '1': 'keyword keyword-macro',
+        '3': 'entity entity-macro'
+      }
+    },
+    'macro macro-error': {
+      pattern: /(#error)(\s*)(")(.*)(")/,
+      replacement: compact(`
+      <span class="keyword keyword-macro">#{1}</span>
+      #{2}
+      <span class="string string-quoted">#{3}#{4}#{5}</span>
+    `)
+    },
+    'keyword keyword-macro': {
+      pattern: /#(endif|else)/
+    }
+  });
+  const MAIN$6 = new Grammar('arduino', {
+    'keyword keyword-control': {
+      pattern: /\b(?:alignas|alignof|asm|auto|break|case|catch|compl|constexpr|const_cast|continue|decltype|default|delete|do|dynamic_cast|else|explicit|export|for|friend|goto|if|inline|new|noexcept|nullptr|operator|register|reinterpret_cast|return|sizeof|static_assert|static_cast|switch|template|this|thread_local|throw|try|typedef|typeid|typename|union|using|while)\b/
+    },
+    'support': {
+      pattern: /\b(?:printf|sprintf|strpos|strstr|strcat)/
+    }
+  }).extend(COMMENTS$1, DECLARATIONS);
+  MAIN$6.extend(MACROS, VALUES$5, STORAGE, {
+    'operator': {
+      pattern: /--?|\+\+?|!=?|(?:<|&lt;){1,2}=?|(&gt;|>){1,2}=?|-(?:>|&gt;)|:{1,2}|={1,2}|\^|~|%|&{1,2}|\|\|?|\?|\*|\/|\b(?:and|and_eq|bitand|bitor|not|not_eq|or|or_eq|xor|xor_eq)\b/
+    }
+  });
 
   function resolve(value) {
     if (typeof value === 'function') {
@@ -1609,205 +1324,6 @@
     }
   }
 
-  let PARAMETERS$4 = new Grammar({
-    'meta: parameter': {
-      pattern: /(?:\b|^)((?:(?:[A-Za-z_$][\w\d]*)\s)*)(\s*)([a-zA-Z_$:][\w\d]*)(?=,|$)/,
-      captures: {
-        '1': () => STORAGE,
-        '3': 'variable variable-parameter'
-      }
-    }
-  });
-  let ESCAPES$1 = new Grammar({
-    escape: {
-      pattern: /\\./
-    }
-  });
-  const DECLARATIONS = new Grammar({
-    'meta: function': {
-      pattern: /([A-Za-z_$]\w*)(\s+)([a-zA-Z_$:]\w*)(\s*)(\()(.*)(\))(\s*)(?={)/,
-      index(match) {
-        let parenIndex = balance(match, ')', '(', {
-          startIndex: match.indexOf('(')
-        });
-        // Find the index just before the opening brace after the parentheses are
-        // balanced.
-        return match.indexOf('{', parenIndex) - 1;
-      },
-      // replacement: "<b>#{1}#{2}#{3}#{4}#{5}#{6}#{7}#{8}</b>",
-      captures: {
-        '1': 'storage storage-type storage-return-type',
-        '3': 'entity',
-        '6': () => PARAMETERS$4
-      }
-    },
-    'meta: bare declaration': {
-      pattern: /\b([A-Za-z_$][\w\d]*)(\s+)([A-Za-z_$][\w\d]*)(\s*)(?=;)/,
-      captures: {
-        '1': 'storage storage-type',
-        '3': 'variable'
-      }
-    },
-    'meta: declaration with assignment': {
-      pattern: /\b([A-Za-z_$][\w\d]*)(\s+)([A-Za-z_$][\w\d]*)(\s*)(=)/,
-      captures: {
-        '1': 'storage storage-type',
-        '3': 'variable',
-        '5': 'operator'
-      }
-    },
-    'meta: array declaration': {
-      pattern: /\b([A-Za-z_$][\w\d]*)(\s+)([A-Za-z_$][\w\d]*)(\[)(\d+)(\])/,
-      captures: {
-        '1': 'storage storage-type',
-        '3': 'variable',
-        '4': 'punctuation',
-        '5': 'number',
-        '6': 'punctuation'
-      }
-    },
-    'meta: declaration with parens': {
-      pattern: /\b([A-Za-z_$][\w\d]*)(\s+)([A-Za-z_$][\w\d]*)(\s*)(\()([\s\S]*)(\))(;)/,
-      index(match) {
-        let balanceIndex = balance(match, ')', '(') + 1;
-        return match.indexOf(';', balanceIndex);
-      },
-      captures: {
-        '1': 'storage storage-type',
-        '3': 'variable',
-        '5': 'punctuation',
-        '6': () => VALUES$5,
-        '7': 'punctuation'
-      }
-    },
-    'meta: class declaration': {
-      pattern: /\b(class|enum)(\s+)([A-Za-z][A-Za-z0-9:_$]*)(\s*)({)/,
-      captures: {
-        '1': 'storage storage-type',
-        '3': 'entity entity-class'
-      }
-    }
-  });
-  const VALUES$5 = new Grammar({
-    'constant': {
-      pattern: /\b[A-Z_]+\b/
-    },
-    'lambda': {
-      pattern: /(\[\])(\s*)(\()([\s\S]*)(\))(\s*)({)([\s\S]*)(})/,
-      index(match) {
-        return balance(match, '}', '{', {
-          startIndex: match.indexOf('{')
-        });
-      },
-      wrapReplacement: true,
-      captures: {
-        '1': 'punctuation',
-        '3': 'punctuation',
-        '4': () => PARAMETERS$4,
-        '5': 'punctuation',
-        '7': 'punctuation',
-        '8': () => MAIN$7,
-        '9': 'punctuation'
-      }
-    },
-    'constant constant-boolean': {
-      pattern: /\b(?:true|false)\b/
-    },
-    'string string-single-quoted': {
-      // In capture group 2 we want zero or more of:
-      // * any non-apostrophes and non-backslashes OR
-      // * an even number of consecutive backslashes OR
-      // * any backslash-plus-apostrophe pair.
-      pattern: /(')((?:[^'\\]|\\\\|\\')*)(')/,
-      wrapReplacement: true,
-      captures: {
-        '2': () => ESCAPES$1
-      }
-    },
-    'string string-double-quoted': {
-      // In capture group 2 we want zero or more of:
-      // * any non-quotes and non-backslashes OR
-      // * an even number of consecutive backslashes OR
-      // * any backslash-plus-quote pair.
-      pattern: /(")((?:[^"\\]|\\[rnt]|\\\\|\\")*)(")/,
-      wrapReplacement: true,
-      captures: {
-        '2': () => ESCAPES$1
-      }
-    },
-    'number': {
-      pattern: /\b0x[\da-f]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?/i
-    }
-  });
-  const COMMENTS$1 = new Grammar({
-    comment: {
-      pattern: /(\/\/[^\n]*(?=\n|$))|(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/
-    }
-  });
-  const STORAGE = new Grammar({
-    'storage storage-type': {
-      pattern: /\b(?:u?int(?:8|16|36|64)_t|int|long|float|double|char(?:16|32)_t|char|class|bool|wchar_t|volatile|virtual|extern|mutable|const|unsigned|signed|static|struct|template|private|protected|public|mutable|volatile|namespace|struct|void|short|enum)/
-    }
-  });
-  const MACRO_VALUES = new Grammar({}).extend(COMMENTS$1, VALUES$5);
-  const MACROS = new Grammar({
-    'macro macro-define': {
-      pattern: /^(\#define)(\s+)(\w+)(.*?)$/,
-      replacement: compact(`
-      <span class="keyword keyword-macro">#{1}</span>#{2}
-      <span class="entity entity-macro">#{3}</span>
-      #{4}
-    `),
-      captures: {
-        '1': 'keyword keyword-macro',
-        '3': 'entity entity-macro',
-        '4': () => MACRO_VALUES
-      }
-    },
-    'macro macro-include': {
-      pattern: /^(\#include)(\s+)("|<|&lt;)(.*?)("|>|&gt;)(?=\n|$)/,
-      replacement: compact(`
-      <span class="keyword keyword-macro">#{1}</span>#{2}
-      <span class="string string-include">
-        <span class="punctuation">#{3}</span>
-        #{4}
-        <span class="punctuation">#{5}</span>
-      </span>
-    `)
-    },
-    'macro macro-with-one-argument': {
-      pattern: /(\#(?:ifdef|ifndef|undef|if))(\s+)(\w+)/,
-      captures: {
-        '1': 'keyword keyword-macro',
-        '3': 'entity entity-macro'
-      }
-    },
-    'macro macro-error': {
-      pattern: /(#error)(\s*)(")(.*)(")/,
-      replacement: compact(`
-      <span class="keyword keyword-macro">#{1}</span>
-      #{2}
-      <span class="string string-quoted">#{3}#{4}#{5}</span>
-    `)
-    },
-    'keyword keyword-macro': {
-      pattern: /#(endif|else)/
-    }
-  });
-  const MAIN$7 = new Grammar('arduino', {
-    'keyword keyword-control': {
-      pattern: /\b(?:alignas|alignof|asm|auto|break|case|catch|compl|constexpr|const_cast|continue|decltype|default|delete|do|dynamic_cast|else|explicit|export|for|friend|goto|if|inline|new|noexcept|nullptr|operator|register|reinterpret_cast|return|sizeof|static_assert|static_cast|switch|template|this|thread_local|throw|try|typedef|typeid|typename|union|using|while)\b/
-    },
-    'support': {
-      pattern: /\b(?:printf|sprintf|strpos|strstr|strcat)/
-    }
-  }).extend(COMMENTS$1, DECLARATIONS);
-  MAIN$7.extend(MACROS, VALUES$5, STORAGE, {
-    'operator': {
-      pattern: /--?|\+\+?|!=?|(?:<|&lt;){1,2}=?|(&gt;|>){1,2}=?|-(?:>|&gt;)|:{1,2}|={1,2}|\^|~|%|&{1,2}|\|\|?|\?|\*|\/|\b(?:and|and_eq|bitand|bitor|not|not_eq|or|or_eq|xor|xor_eq)\b/
-    }
-  });
-
   const LEXER_STRING$1 = new Lexer([{
     name: 'string-escape',
     pattern: /\\./
@@ -1901,7 +1417,7 @@
       pattern: /(&amp;)\#([0-9]+|[xX][0-9a-fA-F]+);/
     }
   });
-  const MAIN$6 = new Grammar('html', {
+  const MAIN$5 = new Grammar('html', {
     'embedded embedded-javascript': {
       pattern: /(&lt;|<)(script|SCRIPT)(\s+.*?)?(&gt;|>)([\s\S]*?)((?:&lt;|<)\/)(script|SCRIPT)(&gt;|>)/,
       replacement: compact(`
@@ -2006,7 +1522,7 @@
   }, {
     encode: true
   });
-  MAIN$6.extend(ENTITIES);
+  MAIN$5.extend(ENTITIES);
 
   /* eslint-disable no-useless-escape */
 
@@ -2149,7 +1665,7 @@
     highlight: (tokens, context) => {
       let last = tokens.pop();
       let serialized = serializeLexerFragment(tokens);
-      let highlighted = MAIN$5.parse(serialized, context);
+      let highlighted = MAIN$4.parse(serialized, context);
       return [highlighted, last];
     },
     scopes: 'embedded jsx-interpolation'
@@ -2425,7 +1941,7 @@
       },
       captures: {
         '1': 'punctuation interpolation-start',
-        '2': () => MAIN$5,
+        '2': () => MAIN$4,
         '3': 'punctuation interpolation-end'
       },
       wrapReplacement: true
@@ -2494,7 +2010,7 @@
       },
       captures: {
         '1': 'punctuation embedded-start',
-        '2': () => MAIN$5,
+        '2': () => MAIN$4,
         '3': 'punctuation embedded-end'
       },
       wrapReplacement: true
@@ -2835,14 +2351,14 @@
   JSX_EXPRESSIONS.extend(VALUES$4);
   JSX_EXPRESSIONS.extend(ARROW_FUNCTIONS);
   JSX_EXPRESSIONS.extend(OPERATORS$1);
-  let MAIN$5 = new Grammar('javascript-jsx', {}, {
+  let MAIN$4 = new Grammar('javascript-jsx', {}, {
     alias: ['react', 'javascript', 'js']
   });
-  MAIN$5.extend(JSX_TAG_ROOT);
-  MAIN$5.extend(IMPORTS);
-  MAIN$5.extend(EXPORTS);
-  MAIN$5.extend(VALUES$4);
-  MAIN$5.extend({
+  MAIN$4.extend(JSX_TAG_ROOT);
+  MAIN$4.extend(IMPORTS);
+  MAIN$4.extend(EXPORTS);
+  MAIN$4.extend(VALUES$4);
+  MAIN$4.extend({
     // TODO: Why did I need this?
     'meta: exclude digits in the middle of identifiers': {
       pattern: /\$\d/,
@@ -3042,7 +2558,7 @@
       pattern: /^\S+/
     }
   });
-  const MAIN$4 = new Grammar('nginx', {
+  new Grammar('nginx', {
     'comment comment-line': {
       pattern: /(^|[\s{};])#.*$/
     },
@@ -4243,286 +3759,53 @@
     alias: ['bash']
   });
 
-  var index = /*#__PURE__*/Object.freeze({
-    __proto__: null,
-    Arduino: MAIN$7,
-    HTML: MAIN$6,
-    JSX: MAIN$5,
-    Nginx: MAIN$4,
-    Python: MAIN$3,
-    Ruby: MAIN$2,
-    SCSS: MAIN$1,
-    Shell: MAIN
-  });
-
-  // WHITESPACE NORMALIZER
-  // =====================
-  //
-  // Trims any leading and trailing newlines from inside of a `pre > code`
-  // element. This lets you write your HTML like this:
-  //
-  // <pre><code>
-  // function foo () {
-  //   return "bar";
-  // }
-  // </code></pre>
-  //
-  // Instead of this:
-  //
-  // <pre><code>function foo () {
-  //   return "bar";
-  // }</code></pre>
-  //
-  //
-  // This plugin is adapted from the excellent (MIT-licensed) Prism plugin:
-  // https://github.com/PrismJS/prism/tree/master/plugins/normalize-whitespace
-  // 
-
-  // Given a document fragment, find the first text node in the tree,
-  // depth-first, or `null` if none is found.
-  function findFirstTextNode(fragment) {
-    let {
-      childNodes: nodes
-    } = fragment;
-    if (nodes.length === 0) {
-      return null;
-    }
-    for (let i = 0; i < nodes.length; i++) {
-      let node = nodes[i];
-      if (node.nodeType === Node.TEXT_NODE) {
-        return node;
-      }
-      let descendant = findFirstTextNode(node);
-      if (descendant) {
-        return descendant;
-      }
-    }
-    return null;
-  }
-  function findLastTextNode(fragment) {
-    let {
-      childNodes: nodes
-    } = fragment;
-    if (nodes.length === 0) {
-      return null;
-    }
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      let node = nodes[i];
-      if (node.nodeType === Node.TEXT_NODE) {
-        return node;
-      }
-      let descendant = findFirstTextNode(node);
-      if (descendant) {
-        return descendant;
-      }
-    }
-    return null;
-  }
-  function handler$1(event) {
-    let {
-      fragment
-    } = event.detail;
-    let firstTextNode = findFirstTextNode(fragment);
-    if (firstTextNode) {
-      let value = firstTextNode.nodeValue;
-      if (value && value.match(/^(\s*\n)/)) {
-        value = value.replace(/^(\s*\n)/, '');
-      }
-      firstTextNode.parentNode.replaceChild(document.createTextNode(value), firstTextNode);
-    }
-    let lastTextNode = findLastTextNode(fragment);
-    if (lastTextNode) {
-      let value = lastTextNode.nodeValue;
-      if (value && value.match(/(\s*\n)+$/)) {
-        value = value.replace(/(\s*\n)+$/, '');
-      }
-      lastTextNode.parentNode.replaceChild(document.createTextNode(value), lastTextNode);
-    }
-  }
-
-  /**
-   * A plugin that strips leading and trailing newlines from the contents of any
-   * `code` element within a `pre` element.
-   *
-   * @alias whitespace-normalizer
-   */
-  function init$2() {
-    document.addEventListener('daub-will-highlight', handler$1);
-    return cleanup$1;
-  }
-  function cleanup$1() {
-    document.removeEventListener('daub-will-highlight', handler$1);
-  }
-
-  // LINE HIGHLIGHTER
-  // ================
-
-  // Allows you to highlight particular lines in your code blocks by annotating
-  // your `pre` or `code` with `data-lines` attributes.
-  //
-  // <pre data-lines="3">  (will highlight the third line)
-  //
-  // <pre data-lines="3,5"> (will highlight the third and fifth lines)
-  // <pre data-lines="3, 5-7, 10-12"> (you get the idea)
-  //
-  // The plugin will figure out the necessary plumbing CSS; all you need to do is
-  // style the class `daub-line-highlight` with a `background-color` of your
-  // choice. But make sure it's an `rgba` value with a low alpha; an opaque
-  // `background-color` will cover your code entirely.
-  //
-  //
-  // CAVEATS:
-  //
-  // * Ensure your preformatted lines are of a fixed height; don't do weird stuff
-  //   with font size such that your line-height can vary from line to line.
-  //
-  // * If you're also using the whitespace-normalizer plugin, make sure the
-  //   values in `data-lines` refer to the line numbers _after_ normalization, not
-  //   before.
-  //
-  //
-  // This plugin is adapted from the excellent (MIT-licensed) Prism plugin:
-  // https://github.com/PrismJS/prism/blob/master/plugins/line-highlight/
-  //
-  function getLineHeight(el) {
-    let style = getComputedStyle(el);
-    return parseFloat(style.lineHeight);
-  }
-  function getTopOffset(code, pre) {
-    let dummy = document.createElement('span');
-    dummy.setAttribute('class', 'daub-line-highlight-dummy');
-    dummy.setAttribute('aria-hidden', 'true');
-    dummy.textContent = ' ';
-    code.insertBefore(dummy, code.firstChild);
-    let preRect = pre.getBoundingClientRect();
-    let codeRect = dummy.getBoundingClientRect();
-    let delta = preRect.top - codeRect.top;
-    code.removeChild(dummy);
-    return Math.abs(delta);
-  }
-  function handleAttribute(str) {
-    if (!str) {
-      return null;
-    }
-    function handleUnit(unit) {
-      let result = {};
-      if (unit.indexOf('-') > -1) {
-        let [start, end] = unit.split('-').map(u => Number(u));
-        result.start = start;
-        result.lines = end + 1 - start;
-      } else {
-        result.start = Number(unit);
-        result.lines = 1;
-      }
-      return result;
-    }
-    let units = str.split(/,\s*/).map(handleUnit);
-    return units;
-  }
-  function makeLine(range, lh, topOffset) {
-    let span = document.createElement('mark');
-    span.setAttribute('class', 'daub-line-highlight');
-    span.setAttribute('aria-hidden', 'true');
-    span.textContent = new Array(range.lines).join('\n') + ' ';
-    let top = topOffset + (range.start - 1) * lh - 2;
-    Object.assign(span.style, {
-      position: 'absolute',
-      top: top + 'px',
-      left: '0',
-      right: '0',
-      lineHeight: 'inherit'
-    });
-    return span;
-  }
-  function handler(event) {
-    let code = event.target;
-    let pre = code.parentNode;
-    // Designed to work on PRE elements specifically, but generally on
-    // block-level elements for which the CODE element is the only child. If the
-    // user asks for highlighting on, say, inline CODE elements within
-    // paragraphs, we can't provide line highlighting for those elements, even if
-    // a `data-lines` attribute is present on either CODE or its parent.
-    if (pre.children.length > 1) {
-      return;
-    }
-    let {
-      fragment
-    } = event.detail;
-    let lineAttr = code.getAttribute('data-lines') || pre.getAttribute('data-lines');
-    if (!lineAttr) {
-      return;
-    }
-    let ranges = handleAttribute(lineAttr);
-    if (!ranges) return;
-    let style = getComputedStyle(pre);
-    let position = style.position;
-    if (position === 'static') {
-      pre.style.position = 'relative';
-    }
-    let lh = getLineHeight(code);
-    let to = getTopOffset(code, pre);
-    ranges.forEach(r => {
-      let span = makeLine(r, lh, to);
-      fragment.appendChild(span);
+  /* eslint-env worker */
+  const LOGGER = new Logger('worker');
+  function postError(error) {
+    postMessage({
+      error
     });
   }
-
-  /**
-   * A plugin that allows you to highlight particular lines in your code block by
-   * annotating your `pre` or `code` element with a `data-lines` attribute.
-   *
-   * @alias line-highlighter
-   */
-  function init$1() {
-    document.addEventListener('daub-will-highlight', handler);
-    return cleanup;
+  function parseLanguage(text, language, context) {
+    let grammar = Grammar.find(language);
+    if (!grammar) {
+      throw new Error(`No such grammar: ${language}`);
+    }
+    return grammar.parse(text, context);
   }
-  function cleanup() {
-    document.removeEventListener('daub-will-highlight', handler);
-  }
-
-  const PLUGINS = {
-    WhitespaceNormalizer: init$2,
-    LineHighlighter: init$1
+  onmessage = function (event) {
+    LOGGER.log('Message:', event);
+    let {
+      type
+    } = event.data;
+    switch (type) {
+      case 'parse':
+        {
+          let {
+            language,
+            text,
+            id
+          } = event.data;
+          let grammar = Grammar.find(language);
+          if (!grammar) {
+            postError(`No such grammar: ${language}`);
+            console.error(`No such grammar: ${language}`);
+            return;
+          }
+          let context = new Context({
+            highlighter: {
+              parse: parseLanguage
+            }
+          });
+          let source = grammar.parse(text, context);
+          postMessage({
+            id,
+            language,
+            source
+          });
+          break;
+        }
+    }
   };
-  const PLUGIN_MAP = {
-    'whitespace-normalizer': init$2,
-    'line-highlighter': init$1
-  };
-
-  // Expose a convenience function for UMD builds that can build a highlighter
-  // with the specified grammars and plugins.
-  function init() {
-    let {
-      grammars = [],
-      plugins = []
-    } = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    let highlighter = new Highlighter();
-    let gs = grammars.map(g => Grammar.load(g));
-    gs.forEach(g => {
-      if (!g) {
-        return;
-      }
-      highlighter.addGrammar(g);
-    });
-    let ps = plugins.map(p => PLUGIN_MAP[p]);
-    ps.forEach(p => {
-      if (!p) {
-        return;
-      }
-      p();
-    });
-    return highlighter;
-  }
-
-  exports.AsyncHighlighter = AsyncHighlighter;
-  exports.Context = Context;
-  exports.GRAMMARS = index;
-  exports.Grammar = Grammar;
-  exports.Highlighter = Highlighter;
-  exports.Lexer = Lexer;
-  exports.PLUGINS = PLUGINS;
-  exports.Utils = utils;
-  exports.init = init;
 
 }));

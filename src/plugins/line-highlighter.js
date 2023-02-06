@@ -52,10 +52,11 @@ function getTopOffset(code, pre) {
 
 function handleAttribute(str) {
   if (!str) { return null; }
+
   function handleUnit (unit) {
     let result = {};
     if (unit.indexOf('-') > -1) {
-      let [start, end] = unit.split('-').map((u) => Number(u));
+      let [start, end] = unit.split('-').map(u => Number(u));
       result.start = start;
       result.lines = end + 1 - start;
     } else {
@@ -90,6 +91,12 @@ function makeLine(range, lh, topOffset) {
 function handler (event) {
   let code = event.target;
   let pre = code.parentNode;
+  // Designed to work on PRE elements specifically, but generally on
+  // block-level elements for which the CODE element is the only child. If the
+  // user asks for highlighting on, say, inline CODE elements within
+  // paragraphs, we can't provide line highlighting for those elements, even if
+  // a `data-lines` attribute is present on either CODE or its parent.
+  if (pre.children.length > 1) { return; }
   let { fragment } = event.detail;
 
   let lineAttr = code.getAttribute('data-lines') || pre.getAttribute('data-lines');
@@ -97,7 +104,11 @@ function handler (event) {
   let ranges = handleAttribute(lineAttr);
   if (!ranges) return;
 
-  pre.style.position = 'relative';
+  let style = getComputedStyle(pre);
+  let position = style.position;
+  if (position === 'static') {
+    pre.style.position = 'relative';
+  }
 
   let lh = getLineHeight(code);
   let to = getTopOffset(code, pre);

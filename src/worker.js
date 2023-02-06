@@ -1,4 +1,6 @@
 /* eslint-env worker */
+// This file is designed to be transpiled to ES5 for simple loading in a web
+// worker.
 import Grammar from '#internal/grammar';
 import Context from '#internal/context';
 import Logger from '#internal/logger';

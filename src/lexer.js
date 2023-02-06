@@ -288,7 +288,7 @@ class Lexer {
           // collection.
           tokens.push(initialToken);
         }
-        console.debug('Lexer START', lexerName, 'at index:', subLexerStartIndex);
+        console.debug('Lexer START', lexerName, 'at index:', subLexerStartIndex, text);
 
         // To ensure accurate `index` values on Tokens, we need to tell the
         // sub-lexer how much of the string we've already consumed.
@@ -348,7 +348,7 @@ class Lexer {
       // console.groupEnd();
     } // end the gigantic `while` loop.
 
-    if (this.highlight && this.highlight) {
+    if (highlight && this.highlight) {
       tokens = this.highlight(tokens, context);
     }
 
