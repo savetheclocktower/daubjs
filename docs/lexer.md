@@ -227,7 +227,7 @@ const LEXER_STRING = new Lexer([
     pattern: /('|")/,
     test: (match, text, context) => {
       let char = context.get('string-begin');
-      if (match[1] !== char) { return false; }Â
+      if (match[1] !== char) { return false; }
       context.set('string-begin', null);
       return match;
     },
