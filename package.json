@@ -1,13 +1,12 @@
 {
-  "name": "daub",
+  "name": "daub-highlighter",
   "version": "0.1.0",
   "type": "module",
-  "description": "Syntax highlighting in the browser.",
-  "main": "dist/daub.cjs.cjs",
-  "module": "dist/daub.esm.js",
+  "description": "Powerful syntax highlighting on client or server",
+  "main": "dist/daub.umd.cjs",
+  "module": "src/all.js",
   "browser": "dist/daub.umd.cjs",
   "dependencies": {
-    "core-js": "^3.2.1"
   },
   "exports": {
     ".": "./src/daub.js",
