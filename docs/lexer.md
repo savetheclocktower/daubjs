@@ -24,7 +24,7 @@ function SomeComponent () {
 }
 ```
 
-Obviously this is unidiomatic React code, but it’s a bit exaggerated to illustrate the challenges here:
+Obviously this is unidiomatic React code, but it’s a bit contrived to illustrate the challenges here:
 
 * Daub needs to know how to balance this correctly. When it encounters `<div `, it can easily understand that `</div>` is the only token that can close the element, but it will encounter the substring `</div>` _several times_. For balancing, it needs to ignore the `</div>` in a literal string and the `</div>` that closes a child element. So we need a way to distinguish between them.
 
@@ -183,9 +183,11 @@ Because `LEXER_BALANCE_BRACES` is trying to find the _balanced_ `}` to go with t
 
 ### Advanced features
 
-Rules can define a property called `test` that refers to a function. That function can be used to define extra criteria for whether the rule matches. It can also be used as a general-purpose callback.
+#### ‘test’ and ‘win’ callbacks
 
-Here’s an example:
+Rules can define a property called `test` that refers to a function. That function can be used to define extra criteria for whether the rule matches.
+
+But first, let’s look at a different callback called `win`, which is called when a rule matches and “wins” — i.e., will be used to consume the next portion of the string.
 
 ```js
 const LEXER_JSX_INTERPOLATION = new Lexer([
@@ -193,9 +195,8 @@ const LEXER_JSX_INTERPOLATION = new Lexer([
   {
     name: 'string-begin',
     pattern: /^\s*('|")/,
-    test: (match, text, context) => {
+    win: (match, text, context) => {
       context.set('string-begin', match[1]);
-      return match;
     },
     inside: {
       name: 'string',
@@ -207,9 +208,9 @@ const LEXER_JSX_INTERPOLATION = new Lexer([
 
 ```
 
-This is one rule among many in a lexer; its purpose is to detect a string. When the pattern matches, `test` is called with three arguments: the match data from `RegExp#exec`, the remainder of the unprocessed string, and a `Context` object.
+This is one rule among many in a lexer; its purpose is to detect a string. When the pattern matches and wins, `win` is called with three arguments: the match data from `RegExp#exec`, the remainder of the unprocessed string, and a `Context` object.
 
-As you can see, all the rule does is return the match data again, but not before setting the value of `string-begin` to whichever character matched.
+As you can see, all the rule does is set the value of `string-begin` to whichever character matched.
 
 String processing continues within `LEXER_STRING`:
 
@@ -226,7 +227,7 @@ const LEXER_STRING = new Lexer([
     pattern: /('|")/,
     test: (match, text, context) => {
       let char = context.get('string-begin');
-      if (match[1] !== char) { return false; }
+      if (match[1] !== char) { return false; }Â
       context.set('string-begin', null);
       return match;
     },
@@ -236,19 +237,69 @@ const LEXER_STRING = new Lexer([
 
 ```
 
-Now we know the purpose of the earlier callback: to set data that would be checked by a later rule. The `string-end` rule checks which kind of quote opened the string, and ensures that the rule doesn’t actually pass until the same kind of quote is encountered.
+Now we understand why the earlier rule stored data in context. In this case, we only want `string-end` to match if the delimiter we encountered earlier is the same as the one that just got matched.
 
-## Highlighting
+But why do we need both `test` and `win`? Why can’t one callback handle both cases? Because **multiple rules can match at the same time, and the lexer picks the one that consumes nearest to the beginning of the string**. Hence the distinction between “matching” and “winning.” Reaching the `test` callback is no guarantee that a rule will win, even if the callback returns `true`.
 
-Once we know what portion of the substring contains a single instance of JSX, we can highlight it. The job of doing this highlighting is still handled primarily with grammars — with occasional calls to `balanceByLexer` for constructs like JSX interpolation so that we can be certain that the right section gets highlighted.
+#### The ‘trim’ option
 
-### Why not use the lexer to highlight?
+A rule can define `trim: true` among its properties. If it is present, any whitespace at the beginning of the match text will be separated from the main match and added to the tree as a raw token, rather than being included in the main token content.
 
-It’s a shame not to do anything with that syntax tree that was returned by the root lexer, so there is _preliminary_ support for generating HTML straight from that tree.
+Here’s an example of where this is useful:
 
-These are the two problems that need to be solved, and how I’ve tentatively solved them:
+```js
+const LEXER_INSIDE_TAG = new Lexer([
+  // ...
+  {
+    name: 'attribute-name',
+    pattern: /^\s*[a-zA-Z][a-zA-Z0-9_$]+(?=\=|\s)/,
+    after: {
+      name: 'attribute-separator',
+      lexer: LEXER_ATTRIBUTE_SEPARATOR
+    },
+    trim: true
+  },
+  // ...
+])
+```
 
-#### Tree structure
+Let’s say this is a lexer that runs just after a JSX or HTML tag name has been consumed, and its job is to detect things that look like attribute names. In this context, all characters have to be classified one way or another, so the pattern anchors to the start of the string so that the lexer won’t skip any text. But the pattern also allows for whitespace between the lexer’s current position and the start of the attribute name.
+
+Given the input `<div foo="bar">`, this lexer would start running when the input looks like ` foo="bar">`. Without `trim: true`, we’d have to either (a) accept ` foo` (including the leading space) being tokenized as the attribute name, or (b) add a new lexer rule for whitespace that emits raw tokens. Option B isn’t a bad idea, but `trim: true` is there for convenience.
+
+
+## Why not use the lexer to highlight?
+
+By default, lexers are used in the highlighting process simply for accurate identification of where certain constructs end. The work of transforming raw source text to HTML-tokenized output text is still done entirely by the grammar.
+
+That said, `balanceByLexer` feels wasteful: it builds a whole tree of tokens, and ultimately discards the whole thing just to get one meaningful number. And if that rule has capture groups, then certain parts of the match will get highlighted by other grammars, which means it’s possible for some of those rules to call `balanceByLexer` themselves in order to get metadata that we generated the first time around.
+
+One solution to this — of arguable elegance — is to find a way to use that tree of tokens from the original lexer run, and transform it directly to HTML. Care would need to be taken when naming rules, but if done properly, the lexer output could produce HTML that was equivalent to what the grammar would’ve produced, except somewhat faster.
+
+These are the three problems that need to be solved, and how I’ve tentatively solved them:
+
+### Defining scope names
+
+Until now, we’ve been free to name lexer rules whatever we want. Rule names were part of the lexer output tree, but we weren’t using those trees for anything until now.
+
+But now we should probably give lexers and lexer rules a way to define a list of class names in cases where the rule name shouldn’t be part of the syntax highlighting HTML output.
+
+So a rule has a `scopes` property, that’s what will be used when a winning token is serialized to HTML. For instance…
+
+
+```js
+{
+  name: 'tag HTML',
+  scopes: 'tag tag-html',
+  pattern: /^[a-z]+(?=&gt;|>)/
+},
+```
+
+…will produce HTML of the format `<span class="tag tag-html">div</span>` instead of `<span class="tag HTML">div</span>`. Of course, we could also just rename this rule `tag tag-html`. Our choice.
+
+A lexer itself can have a `scopes` option at definition time, and it’ll be treated similarly, with one major difference that’ll be explained in the next section.
+
+### Tree structure
 
 Right now, the hierarchy of the syntax tree recapitulates the hierarchy of lexers and sub-lexers and how they delegated to one another. That grouping doesn’t _necessarily_ have any semantic value.
 
@@ -256,11 +307,16 @@ An ideal tree would have hierarchy, but only where the hierarchy adds meaning. F
 
 This cries out for a permanent solution, but for now I’m having luck with flattening and rebuilding the tree, only adding hierarchy where it’s opted into by a lexer. For instance, the `LEXER_STRING` lexer specifies a `scopes: "string"` option in its definition, and emits it when running against a string. When the tree-flattener encounters that property in the output, it knows to create a group and put all of the string lexer’s children into the group.
 
-When converting the rebuilt tree to HTML, Daub will emit `spans` with `class` attributes that match the lexer’s `name` properties (except for `raw: true` rules), but you can override this with the `scopes` property if the rule’s name isn’t a suitable value for `class`.
+Keep this difference in mind: when a lexer tree is transformed to HTML,
+
+* lexers and sub-lexers themselves are **opt-in**: won’t wrap their output in a `<span class="whatever">` _unless_ the lexer itself was defined with a `scopes` option, **but**
+* lexer rules are **opt-out**: their matches _will_ be wrapped in `<span class="whatever">`, where `whatever` is either the rule’s `scopes` property (if present) or the rule’s `name`, _unless_ the rule specifies `raw: true`.
 
 The `renderLexerTree` function from `Utils` will convert lexer output to HTML, but you’ll probably want to use `balanceAndHighlightByLexer` instead. It works like `balanceByLexer`, but returns both a string index and the HTML serialization of the lexer tree.
 
-This is ideal because you still have to use the lexer to determine the bounds of the match, so it makes the most sense to render the HTML at the same time to prevent wasted work. Since the `index` callback passes a `Context`, you can use that to store the HTML output and retrieve it in an `after` callback:
+This is ideal because you still have to use the lexer to determine the bounds of the match, so it makes the most sense to render the HTML at the same time to prevent wasted work.
+
+Which brings us to the task of integrating all this work into a grammar. Since the `index` callback passes a `Context`, you can use that to store the HTML output and retrieve it in an `after` callback:
 
 ```js
 let JSX_TAG_ROOT = new Grammar({
@@ -293,15 +349,15 @@ let JSX_TAG_ROOT = new Grammar({
 });
 ```
 
-#### Hooks for better control
+### Hooks for better control
 
 As it’s written now, the JSX lexer’s goal is to identify where a JSX block starts and ends. Along the way, it marks some areas of the string in a way that’s useful for highlighting, but it doesn’t know how to highlight _everything_ it encounters.
 
 For instance, when it encounters the beginning of a JSX interpolation block (`{`), all it does is try to find where the end of that block is. It doesn’t pay any attention to the contents except to figure out where that interpolation block ends.
 
-The only way to make the lexer able to highlight within interpolation blocks on its own is to make it able to lex arbitrary JavaScript, and that is major overkill. Instead, we’d want to tell the lexer to mark the contents and bounds of those areas within the string, then introduce hooks into the transform-lexer-output-to-html code so that we can tell our JS grammar to highlight them.
+The only way to make the lexer able to highlight within interpolation blocks on its own is to make it able to lex arbitrary JavaScript, and that is major overkill. Instead, we’d want to give that job back to our ordinary JS grammar by hooking into the transform-lexer-output-to-HTML process.
 
-How? Right now I allow a lexer to define a `highlight` callback that, despite its name, simply acts as a callback to allow us to transform a group of tokens just before returning the result.
+How? Right now I allow a lexer to define a `highlight` function that, despite its name, simply acts as a callback to allow us to transform a group of tokens just before returning the result.
 
 For example:
 
@@ -327,9 +383,9 @@ Exactly what this callback does will depend on the particulars of the lexer. But
 
 …would expect to receive a bunch of tokens that comprise the raw string `s => s.state}`. (In other words, the lexer starts immediately after the interpolation’s opening brace, then stops after it consumes the closing brace.)
 
-We can use another convenience function to convert these tokens to their raw string, but first we remove the closing brace token, because it’ll just confuse our highlighter. Then we can parse the `s => state` portion with the regular JS grammar, then return a simpler token array consisting of the highlighted HTML and the closing brace.
+We can use another convenience function, `serializeLexerFragment`, to convert these tokens to their raw string, but first we remove the closing brace token, because it’ll just confuse our highlighter. Then we can parse the `s => state` portion with the regular JS grammar, then return a simpler token array consisting of the highlighted HTML and the closing brace.
 
-#### …but is it worth it?
+### …but is it worth it?
 
 Lexing itself is expensive, but the rest of the highlighting machinery isn’t, at least by comparison. So it’s probably not worth going to this trouble unless the savings are sizable.
 
