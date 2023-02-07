@@ -56,7 +56,7 @@ function wrapArray (obj) {
  * @returns {number} The first index at which `token` occurs when balanced, or
  *   `-1` if a balanced occurrence of `token` is not found.
  */
-function balance(source, token, paired, options = {}) {
+export function balance(source, token, paired, options = {}) {
   options = Object.assign(
     { startIndex: 0, startDepth: 0, considerEscapes: true },
     options
@@ -97,7 +97,7 @@ function balance(source, token, paired, options = {}) {
  * @param   {string} str The string to compact.
  * @returns {string} The compacted string.
  */
-function compact (str) {
+export function compact (str) {
   str = str.replace(/^[\s\t]*/mg, '');
   str = str.replace(/\n/g, '');
   return str;
@@ -112,22 +112,9 @@ function compact (str) {
  *   string is wrapped.
  * @returns {string} The wrapped string.
  */
-function wrap (str, className) {
+export function wrap (str, className) {
   if (!str) { return ''; }
   return `<span class="${className}">${str}</span>`;
-}
-
-function getLastToken (results) {
-  for (let i = results.length - 1; i >= 0; i--) {
-    let token = results[i];
-    if (typeof token === 'string') { continue; }
-    if ( Array.isArray(token.content) ) {
-      return getLastToken(token.content);
-    } else {
-      return token;
-    }
-  }
-  return null;
 }
 
 /**
@@ -137,10 +124,12 @@ function getLastToken (results) {
  *
  * @param {string} text The string.
  * @param {Lexer} lexer An instance of `Lexer`.
+ * @param {Context} context The `Context` instance that was provided in the
+ *   invoking grammar callback.
  * @returns {number} The index of the final character of the final token that
  *   was matched by the lexer.
  */
-function balanceByLexer (text, lexer, context) {
+export function balanceByLexer (text, lexer, context) {
   let start, end;
   start = performance.now();
   if (performance.mark) {
@@ -159,7 +148,24 @@ function balanceByLexer (text, lexer, context) {
   return results.lengthConsumed - 1;
 }
 
-function balanceAndHighlightByLexer (text, lexer, context) {
+/**
+ * Given a string of text and a lexer instance, returns both the index
+ * reperesenting everything the lexer consumed and the serialized HTML
+ * representation of the lexer tree.
+ *
+ * Experimental, but useful for preventing redundant lexer usage by
+ * allowing the lexer itself to be in charge of highlighting for everything
+ * it consumes.
+ *
+ * @param {string} text The string.
+ * @param {Lexer} lexer An instance of `Lexer`.
+ * @param {Context} context The `Context` instance that was provided in the
+ *   invoking grammar callback.
+ * @returns {Object} Object with properties `index` (the index of the final
+ *   character of the final token that was matched by the lexer) and
+ *   `highlighted` (the tokenized HTML serialization of the lexer tree).
+ */
+export function balanceAndHighlightByLexer (text, lexer, context) {
   let start, end;
   start = performance.now();
   if (performance.mark) {
@@ -181,6 +187,28 @@ function balanceAndHighlightByLexer (text, lexer, context) {
     highlighted
   };
 }
+
+/**
+ * Converts all or part of a lexer's output back into the raw text that it
+ * represents.
+ *
+ * @param {Array|Object} tokens The token or tokens that should be converted
+ *  back to raw text. Can be an array or a single object.
+ * @returns {string}
+ */
+export function serializeLexerFragment (tokens) {
+  let result = [];
+  tokens = wrapArray(tokens);
+  for (let t of tokens) {
+    if (isString(t)) { result.push(t); }
+    else if (t.content) {
+      let serialized = serializeLexerFragment( wrapArray(t.content) );
+      result.push(...serialized);
+    }
+  }
+  return result.join('');
+}
+
 
 function flattenTree (tree) {
   let results = [];
@@ -208,22 +236,12 @@ function flattenTree (tree) {
 }
 
 /**
-  Given an array of Tokens,
+ * Given a lexer's output, serializes it into a string while retaining any
+ * information marked as useful for syntax highlighting.
+ * @param   {Object} obj A lexer tree, the result of `Lexer#run`.
+ * @returns {string} HTML marked for syntax highlighting.
  */
-function serializeLexerFragment (tokens) {
-  let result = [];
-  for (let t of tokens) {
-    if (isString(t)) { result.push(t); }
-    else if (t.content) {
-      let serialized = serializeLexerFragment( wrapArray(t.content) );
-      result.push(...serialized);
-    }
-  }
-  return result.join('');
-}
-
-
-function renderLexerTree (obj) {
+export function renderLexerTree (obj) {
   let flat = flattenTree(obj);
   return flat.map((t) => {
     let result;
@@ -240,16 +258,9 @@ function renderLexerTree (obj) {
   }).join('');
 }
 
-
 export {
-  balance,
-  balanceByLexer,
-  balanceAndHighlightByLexer,
-  compact,
   escapeRegExp,
   gsub,
   regExpToString,
-  serializeLexerFragment,
-  wrap,
   VerboseRegExp
 };

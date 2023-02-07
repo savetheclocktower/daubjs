@@ -9,26 +9,6 @@ import {
 import * as Utils from '#internal/utils';
 import * as GRAMMARS from '#internal/grammars/index';
 
-// import Arduino from './grammars/arduino';
-// import HTML from './grammars/html';
-// import JavaScript from './grammars/javascript';
-// import JSX from './grammars/jsx';
-// import Python from './grammars/python';
-// import Ruby from './grammars/ruby';
-// import SCSS from './grammars/scss';
-// import Shell from './grammars/shell';
-//
-// const GRAMMARS = {
-//   Arduino,
-//   HTML,
-//   JavaScript,
-//   JSX,
-//   Python,
-//   Ruby,
-//   SCSS,
-//   Shell
-// };
-
 import WhitespaceNormalizer from '#internal/plugins/whitespace-normalizer';
 import LineHighlighter from '#internal/plugins/line-highlighter';
 

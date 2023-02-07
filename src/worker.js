@@ -1,6 +1,8 @@
 /* eslint-env worker */
+
 // This file is designed to be transpiled to ES5 for simple loading in a web
-// worker.
+// worker. If you need only a small subset of grammars, you should consult
+// `examples/worker.js` for a script that
 import Grammar from '#internal/grammar';
 import Context from '#internal/context';
 import Logger from '#internal/logger';
@@ -16,7 +18,7 @@ function postError (error) {
 function parseLanguage (text, language, context) {
   let grammar = Grammar.find(language);
   if (!grammar) {
-    throw new Error(`No such grammar: ${language}`);
+    return text;
   }
   return grammar.parse(text, context);
 }
@@ -27,17 +29,10 @@ onmessage = function (event) {
   switch (type) {
     case 'parse': {
       let { language, text, id } = event.data;
-      let grammar = Grammar.find(language);
-      if (!grammar) {
-        postError(`No such grammar: ${language}`);
-        console.error(`No such grammar: ${language}`);
-        return;
-      }
-
       let context = new Context({
         highlighter: { parse: parseLanguage }
       });
-      let source = grammar.parse(text, context);
+      let source = parseLanguage(text, language, context);
       postMessage({ id, language, source });
       break;
     }

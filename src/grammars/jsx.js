@@ -149,9 +149,8 @@ const LEXER_JSX_INTERPOLATION = new Lexer([
     name: 'string-begin',
     // classNames: 'string string-quoted',
     pattern: /^\s*('|")/,
-    test: (match, text, context) => {
+    win (match, text, context) {
       context.set('string-begin', match[1]);
-      return match;
     },
     inside: {
       name: 'string',
@@ -209,9 +208,8 @@ const LEXER_ATTRIBUTE_VALUE = new Lexer([
   {
     name: 'string-begin',
     pattern: /^\s*('|")/,
-    test: (match, text, context) => {
+    win (match, text, context) {
       context.set('string-begin', match[1]);
-      return match;
     },
     inside: {
       name: 'string',
@@ -248,12 +246,11 @@ const LEXER_JSX_CLOSING_TAG = new Lexer([
   {
     name: 'punctuation',
     pattern: /^\s*(?:>|&gt;)/,
-    test: (match, text, context) => {
+    win (match, text, context) {
       let depth = context.get('jsx-tag-depth');
       if (depth < 1) { throw new Error(`Depth error!`); }
       depth--;
       context.set('jsx-tag-depth', depth);
-      return match;
     },
     trim: true,
     final: true
@@ -274,7 +271,7 @@ const LEXER_INSIDE_TAG = new Lexer([
   },
   {
     name: 'attribute-name',
-    pattern: /^\s*[a-zA-Z][a-zA-Z0-9_$]+(?=\=)/,
+    pattern: /^\s*[a-zA-Z][a-zA-Z0-9_$]+(?=\=|\s)/,
     after: {
       name: 'attribute-separator',
       lexer: LEXER_ATTRIBUTE_SEPARATOR
@@ -285,10 +282,9 @@ const LEXER_INSIDE_TAG = new Lexer([
     // The end of a self-closing tag.
     name: 'punctuation punctuation-self-closing',
     pattern: /^\s*\/(?:>|&gt;)/,
-    test: (match, text, context) => {
+    win (match, text, context) {
       context.set('is-opening-tag', null);
       // Don't increment the tag depth.
-      return match;
     },
     trim: true,
     final: (context) => context.get('is-root')
@@ -297,15 +293,22 @@ const LEXER_INSIDE_TAG = new Lexer([
     // The end of a tag.
     name: 'punctuation',
     pattern: /^\s*(>|&gt;)/,
-    test: (match, text, context) => {
-      let wasOpeningTag = context.get('is-opening-tag');
+    test (match, text, context) {
       let depth = context.get('jsx-tag-depth');
+      let wasOpeningTag = context.get('is-opening-tag');
       depth += wasOpeningTag ? 1 : -1;
 
       // This rule is designed to match situations where we're inside at least
       // one JSX tag, because in those cases we're still in JSX mode. So return
       // false if the new depth is now zero. The next rule will catch this.
       if (depth === 0) { return false; }
+      return true;
+    },
+    win (match, text, context) {
+      let depth = context.get('jsx-tag-depth');
+      let wasOpeningTag = context.get('is-opening-tag');
+      depth += wasOpeningTag ? 1 : -1;
+
       context.set('jsx-tag-depth', depth);
       context.set('is-opening-tag', null);
       return match;
@@ -589,14 +592,14 @@ let JSX_TAG_ROOT = new Grammar({
       (&gt;|>)
     `,
     index: (text, context) => {
-      let index = balanceByLexer(text, LEXER_TAG_ROOT, context);
-      // let { index, highlighted } = balanceAndHighlightByLexer(text, LEXER_TAG_ROOT, context);
-      // context.set('lexer-highlighted', highlighted);
+      // let index = balanceByLexer(text, LEXER_TAG_ROOT, context);
+      let { index, highlighted } = balanceAndHighlightByLexer(text, LEXER_TAG_ROOT, context);
+      context.set('lexer-highlighted', highlighted);
       return index;
     },
-    captures: {
-      '0': () => JSX_CONTENTS
-    },
+    // captures: {
+    //   '0': () => JSX_CONTENTS
+    // },
     replacement: `<span class='jsx'>#{0}</span>`,
     after (text, context) {
       return context ? (context.get('lexer-highlighted') || text) : text;
@@ -649,23 +652,23 @@ let JSX_TAGS = new Grammar({
     index (text) {
       return balanceByLexer(text, LEXER_TAG_OPEN_START);
     },
-    before (r, context) {
-      r.name = `jsx-element element element-opening`;
+    before (m, context) {
+      m.name = `jsx-element element element-opening`;
       // We grab the last character before the closing angle bracket because an
       // optional match won't work correctly after the greedy content match. If
       // that last character is a slash, we keep it as a separate token;
       // otherwise, we move it back to the end of capture group 4.
-      r[2] = handleJsxOrHtmlTag(r[2]);
-      if (r[5]) {
-        if (r[5] === '/') {
-          r.name = r.name.replace('element-opening', 'element-self');
-          r[5] = wrap(r[5], 'punctuation');
+      m[2] = handleJsxOrHtmlTag(m[2]);
+      if (m[5]) {
+        if (m[5] === '/') {
+          m.name = m.name.replace('element-opening', 'element-self');
+          m[5] = wrap(m[5], 'punctuation');
         } else {
-          r[4] += r[5];
-          r[5] = '';
+          m[4] += m[5];
+          m[5] = '';
         }
       }
-      r[4] = JSX_ATTRIBUTES.parse(r[4], context);
+      m[4] = JSX_ATTRIBUTES.parse(m[4], context);
     }
   },
 
@@ -676,10 +679,13 @@ let JSX_TAGS = new Grammar({
       (\s*) # 3: optional space
       (&gt;|>) # 4: closing angle bracket
     `,
+    before (m, context) {
+      m[2] = handleJsxOrHtmlTag(m[2]);
+    },
     replacement: compact(`
       <span class='jsx-element element element-closing'>
         <span class='punctuation'>#{1}</span>
-        <span class='tag'>#{2}</span>#{3}
+        #{2}#{3}
         <span class='punctuation'>#{4}</span>
       </span>
     `)

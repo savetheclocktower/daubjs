@@ -60,7 +60,7 @@ class Token {
 }
 
 /**
- * A class that consumes a string based on a series of rules. Can include other
+ * A lexer that consumes a string based on a series of rules. Can include other
  * lexers or designate “sub-lexers” for certain rules.
  *
  * @param {Object[]} rules A collection of rules. Each rule object must satisfy
@@ -82,8 +82,8 @@ class Lexer {
   /**
    * Add rules to the lexer.
    *
-   * @param {Object[]} rules An array of rules. Each rule object must satisfy
-   *   the “rule” contract.
+   * @param {Object[]|Lexer} rules An array of rules or an instance of `Lexer`.
+   *  Each rule object must satisfy the “rule” contract.
    */
   addRules (rules) {
     this.rules.push(...rules);
@@ -115,14 +115,18 @@ class Lexer {
    *   given, a fresh context will be created. All invocations of sub-lexers by
    *   this lexer will share the same context instance.
    * @param {Object} [options={}] A series of options.
-   * @param {Number} [options.startIndex=0] The index on which to start lexing
+   * @param {number} [options.startIndex=0] The index on which to start lexing
    *   the string. Defaults to 0.
+   * @param {number} [options.highlight=false] Whether the results of this
+   *   lexing run will be used for syntax highlighting. If `true`, will call
+   *   a lexer's `highlight` callback (if present) so that applicable ranges
+   *   are returned as tokenized HTML rather than the typical tree of `Token`s.
    *
    * @returns {Object} An object with two keys: `results` and `text`. The
    *   `results` key refers to an array of `Token`s and raw strings. The `text`
    *   key contains whatever fragment of the string could not be parsed.
    */
-  run (text, context = null, { startIndex = 0, scopes = null, highlight = false } = {}) {
+  run (text, context = null, { startIndex = 0, highlight = false } = {}) {
     let isRoot = context === null;
     let tokens = [];
     if (!context) {
@@ -173,6 +177,11 @@ class Lexer {
       } else {
         console.debug(this.name, 'Match:', rule.name, match[0], match, rule);
         console.debug(' found at global index:', match.index + lengthConsumed);
+      }
+
+      if (rule.win) {
+        // Give the winning rule a chance to set context.
+        rule.win(match, text, context);
       }
 
       let matchIndex = match.index;
@@ -293,7 +302,8 @@ class Lexer {
         // To ensure accurate `index` values on Tokens, we need to tell the
         // sub-lexer how much of the string we've already consumed.
         let lexerResult = lexer.run(text, context, {
-          startIndex: subLexerStartIndex
+          startIndex: subLexerStartIndex,
+          highlight
         });
 
         console.debug('Lexer END', lexerName, 'consumed:', lexerResult.lengthConsumed);

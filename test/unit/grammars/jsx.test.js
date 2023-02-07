@@ -16,8 +16,8 @@ describe('JavaScript (JSX) grammar', () => {
   it('parses example-from-lexer-docs.js', () => {
     let tree = parseToTree(JSX, FIXTURES['example-from-lexer-docs.js']);
     expect(tree).toContainScopes({
-      'tag-jsx': 1,
-      'tag-html': 2,
+      'tag-jsx': 2,
+      'tag-html': 4,
       'embedded': 4,
       'number': 2
     });
