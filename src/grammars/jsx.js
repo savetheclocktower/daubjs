@@ -788,7 +788,7 @@ VALUES.extend(ARROW_FUNCTIONS);
 VALUES.extend(STRINGS);
 VALUES.extend({
   comment: {
-    pattern: /(\/\/[^\n]*\n)|(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/
+    pattern: /(\/\/[^\n]*(?=\n|$))|(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/
   },
 
   regexp: {

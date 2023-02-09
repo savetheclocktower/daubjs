@@ -127,7 +127,7 @@ let VALUES = new Grammar({
   ...STRINGS.toObject(),
 
   comment: {
-    pattern: /(\/\/[^\n]*\n)|(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/
+    pattern: /(\/\/[^\n]*(?=\n|$))|(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/
   },
 
   regexp: {
