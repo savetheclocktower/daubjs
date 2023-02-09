@@ -271,11 +271,17 @@ const LEXER_INSIDE_TAG = new Lexer([
   },
   {
     name: 'attribute-name',
-    pattern: /^\s*[a-zA-Z][a-zA-Z0-9_$]+(?=\=|\s)/,
+    pattern: /^\s*[a-zA-Z][a-zA-Z0-9_$-]+(?=\=)/,
     after: {
       name: 'attribute-separator',
       lexer: LEXER_ATTRIBUTE_SEPARATOR
     },
+    trim: true
+  },
+  {
+    // An attribute without a value, as in `<input checked>`.
+    name: 'attribute-name',
+    pattern: /^\s*[a-zA-Z][a-zA-Z0-9_$-]+(?=\s)/,
     trim: true
   },
   {

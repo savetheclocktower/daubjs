@@ -13,13 +13,13 @@ describe('JavaScript (JSX) grammar', () => {
     setup();
   });
 
-  it('parses example-from-lexer-docs.js', () => {
-    let tree = parseToTree(JSX, FIXTURES['example-from-lexer-docs.js']);
+  it('parses jsx-with-valueless-attribute.js', () => {
+    let tree = parseToTree(JSX, FIXTURES['jsx-with-valueless-attribute.js']);
     expect(tree).toContainScopes({
-      'tag-jsx': 2,
-      'tag-html': 4,
-      'embedded': 4,
-      'number': 2
+      'tag-jsx': 0,
+      'tag-html': 3,
+      'attribute-name': 3,
+      'string': 2
     });
   });
 });
