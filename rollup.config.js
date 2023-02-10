@@ -15,6 +15,8 @@ import PACKAGE from './package.json';
 
 let extraPlugins = [];
 
+// Map everything inside `src` to a format that rollup will accept as an
+// `input` config value.
 const mappings = Object.fromEntries(
   glob.sync('src/**/*.js').map(file => {
     let from = path.relative(
@@ -76,11 +78,6 @@ export default [
   },
 
   // ES6 converted to logging-stripped ES6.
-
-  // “If you want to convert a set of files to another format while maintaining
-  // the file structure and export signatures, the recommended way … is to turn
-  // every file into an entry point. You can do so dynamically e.g. via the
-  // glob package.”
   {
     input: mappings,
     output: {
