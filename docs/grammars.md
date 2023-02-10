@@ -10,7 +10,7 @@ This document assumes a moderate amount of familiarity with regular expressions.
 A Daub grammar is agnostic to its environment. It doesn’t know anything about the DOM, and therefore doesn’t care about whether it runs client-side or server-side. Its interface is simple: it exposes a `parse` method that will accept text and produce HTML-tokenized text.
 
 ```javascript
-import Ruby from 'daub/grammars/ruby';
+import Ruby from 'daubjs/grammars/ruby';
 
 Ruby.parse(`module Foo\nend`);
 // "<span class="keyword">module</span> <span class="entity">Foo</span>\n<span class="keyword">end</span>"
@@ -60,7 +60,7 @@ How do we want this to be marked up? Well, `module` and `end` are keywords, and 
 That feels like it shouldn’t be hard. Let’s try to write some rules for that:
 
 ```javascript
-import { Grammar } from 'daub';
+import { Grammar } from 'daubjs';
 
 let RUBY = new Grammar('ruby', {
   keyword: {
@@ -119,7 +119,7 @@ The bad news is that a `replacement` string will need to use each individual cap
 In fact, there’s a shorthand for the `module` rule that allows us to skip a `replacement` property altogether:
 
 ```javascript
-import { Grammar } from 'daub';
+import { Grammar } from 'daubjs';
 
 let RUBY = new Grammar('ruby', {
   // ...
@@ -282,7 +282,7 @@ This is a good time to peel back the curtain and show you the callbacks that und
 A rule can specify `before` and `after` callbacks that run before and after replacement. Our `ESCAPES` sub-grammar example could be written _less_ tersely:
 
 ```javascript
-import { wrap } from 'daub/utils';
+import { wrap } from 'daubjs/utils';
 
 let RUBY = new Grammar('ruby', {
   // ...
@@ -309,7 +309,7 @@ Conceptually, this is almost exactly how the `captures` shorthand is implemented
 This is another example of the shorthand solving the 95%-of-the-time use case, but there are times when you need to do something more unconventional. Here’s an example from the JSX grammar:
 
 ```javascript
-import { wrap } from 'daub/utils';
+import { wrap } from 'daubjs/utils';
 
 function handleJsxOrHtmlTag (tagName) {
   if (tagName.match(/^[A-Z]/)) {
@@ -391,7 +391,7 @@ As its name implies, the `index` callback is expected to return a string index. 
 
 In this case, how would we find the end of the `%Q` literal? We’d probably want to start right before the first `{` and step through the string character by character. After that first `{`, if we encountered a `}`, we’d stop. But if we encountered another `{` first, we’d understand that we’d then need to see _two_ `}`s before we could stop. _And_ we’d want to ignore any `{`s or `}`s that had backslashes before them, because in this context those would be literal braces with no special meaning.
 
-In this code example, all `index` does is call a hypothetical function named `balance`, which apparently does all this work on its own. The good news is that `balance` is _not_ hypothetical — it actually exists, and you can import it from `daub/utils`!
+In this code example, all `index` does is call a hypothetical function named `balance`, which apparently does all this work on its own. The good news is that `balance` is _not_ hypothetical — it actually exists, and you can import it from `daubjs/utils`!
 
 To summarize:
 
@@ -563,7 +563,7 @@ The options:
 Given a multiline string, removes all newlines, along with all space at the _beginnings_ of lines. Lets us use indentation and multiple lines to craft more readable `replacement` strings, yet have all that extraneous space stripped out before it gets into the replacement.
 
 ```javascript
-import { Utils } from 'daub';
+import { Utils } from 'daubjs';
 
 Utils.compact(`
   <span class="string string-quoted">
@@ -581,7 +581,7 @@ Utils.compact(`
 Same shorthand used internally by `captures`. Wraps `string`, if present and truthy, with a `span` whose `class` attribute is equal to `className`. If `string` is falsy — empty string, `null`, `undefined` — `wrap` will return an empty string.
 
 ```javascript
-import { Utils } from 'daub';
+import { Utils } from 'daubjs';
 Utils.wrap('foo', 'bar');
 //-> <span class='bar'>foo</span>
 Utils.wrap(null, 'bar');
@@ -595,7 +595,7 @@ Verbose regular expressions are _great_ in languages that support them. They mak
 So Daub also exports a utility function called `VerboseRegExp`. It's a [tagged template literal][] that allows you to define a verbose regular expression using backticks. Literal whitespace has no meaning (use `\s` instead), and you can use `#` to mark comments at the ends of lines. This makes long regular expressions way easier to grok.
 
 ```javascript
-import { VerboseRegExp } from 'daub';
+import { VerboseRegExp } from 'daubjs';
 
 let pattern = VerboseRegExp`
   (\s+)  # This comment will be ignored,

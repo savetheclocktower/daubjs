@@ -8,8 +8,8 @@
 // Import the Grammar class and any specific grammars you want to be able to
 // understand. Simply importing a grammar will register it so that it can later
 // be found by `Grammar.find`.
-import { Context, Grammar } from 'daub';
-import Ruby from 'daub/grammars/ruby';
+import { Context, Grammar } from 'daubjs';
+import Ruby from 'daubjs/grammars/ruby';
 
 function postError (error) {
   postMessage({ error });

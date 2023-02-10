@@ -4,7 +4,7 @@
 Plugins are simple. They’re just functions that listen for the events that Daub emits during the highlighting process.
 
 ```js
-import WhitespaceNormalizer from 'daub/plugins/whitespace-normalizer';
+import WhitespaceNormalizer from 'daubjs/plugins/whitespace-normalizer';
 
 // Call the function to enable it…
 let done = WhitespaceNormalizer();

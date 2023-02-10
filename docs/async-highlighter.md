@@ -9,7 +9,7 @@ If you’re loading Daub in a web worker, you’ll want to import `AsyncHighligh
 ## Example
 
 ```js
-import { AsyncHighlighter } from 'daub';
+import { AsyncHighlighter } from 'daubjs/highlighter';
 const WORKER = new Worker(`/dist/daub.worker.umd.js`);
 
 const highlighter = new AsyncHighlighter(

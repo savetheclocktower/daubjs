@@ -1,5 +1,5 @@
 {
-  "name": "daub-highlighter",
+  "name": "daubjs",
   "version": "0.1.0",
   "type": "module",
   "description": "Powerful syntax highlighting on client or server",
@@ -8,7 +8,6 @@
   "browser": "dist/daub.umd.cjs",
   "exports": {
     ".": "./lib/daub.js",
-    "./cjs": "./dist/daub.cjs.cjs",
     "./umd": "./dist/daub.umd.cjs",
     "./umd/worker": "./dist/daub.worker.umd.cjs",
     "./all": "./lib/all.js",

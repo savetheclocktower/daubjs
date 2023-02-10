@@ -1,6 +1,6 @@
 
-import { Highlighter } from 'daub';
-import jsx from 'daub/grammars/jsx';
+import { Highlighter } from 'daubjs';
+import jsx from 'daubjs/grammars/jsx';
 
 let highlighter = new Highlighter();
 

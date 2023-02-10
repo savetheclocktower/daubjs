@@ -23,7 +23,7 @@ There are several ways to use Daub.
 
 ### Simplest: the bare UMD file
 
-The file residing at `dist/daub.umd.cjs` is self-contained and transpiled to ES5. It can be imported into any environment, including the browser. It’s also what gets returned if you import or require `daub/umd`.
+The file residing at `dist/daub.umd.cjs` is self-contained and transpiled to ES5. It can be imported into any environment, including the browser. It’s also what gets returned if you import or require `daubjs/umd`.
 
 The downside of this approach is that you get the maximal bundle, including all existing grammars and plugins.
 
@@ -31,9 +31,9 @@ The downside of this approach is that you get the maximal bundle, including all 
 
 If you bundle your JavaScript with a tool like [Rollup](https://rollupjs.org/), you can import only the pieces you need; consult `examples/simple.js` for a typical usage.
 
-This allows you to import only the parts you want, though you can replicate the all-in-one bundle by importing `daub/all`.
+This allows you to import only the parts you want, though you can replicate the all-in-one bundle by importing `daubjs/all`.
 
-If you are delivering bundled ES6 to the browser, this should work just fine. If you are transpiling your ES6 to ES5, you must ensure that Babel is configured to transpile Daub as well, rather than excluding `node_modules/**` from transpilation. If you don’t want to mess with the configuration, you can instead import `daub/umd`, which does not require transpilation.
+If you are delivering bundled ES6 to the browser, this should work just fine. If you are transpiling your ES6 to ES5, you must ensure that Babel is configured to transpile Daub as well, rather than excluding `node_modules/**` from transpilation. If you don’t want to mess with the configuration, you can instead import `daubjs/umd`, which does not require transpilation.
 
 ### Ever-so-slightly more complex: web worker
 
@@ -41,7 +41,7 @@ If you expect to be doing a _lot_ of code highlighting, or if you are obsessive 
 
 This will increase latency and overall time to highlight code in exchange for ensuring that no highlighting work affects the responsiveness of the page.
 
-See `examples/worker.js` for an example of a worker you can write, or import `daub/umd/worker` for the maximal version that loads all grammars. Either way, ensure that the file in question is bundled separately from your main script at a known URL so that it can loaded via `new Worker`.
+See `examples/worker.js` for an example of a worker you can write, or import `daubjs/umd/worker` for the maximal version that loads all grammars. Either way, ensure that the file in question is bundled separately from your main script at a known URL so that it can loaded via `new Worker`.
 
 The web worker approach involves declaring an instance of `AsyncHighlighter` on the main page instead of `Highlighter`. Usage instructions are otherwise very similar to what is described below.
 
@@ -88,8 +88,8 @@ Daub will take the contents of these code blocks and replace them with tokenized
 The `Highlighter` class manages code highlighting on a page. Create an instance, then add at least one element and at least one grammar:
 
 ```javascript
-import { Highlighter } from 'daub';
-import RUBY from 'daub/grammars/ruby';
+import { Highlighter } from 'daubjs';
+import RUBY from 'daubjs/grammars/ruby';
 
 const highlighter = new Highlighter();
 highlighter.addElement(document.body);
@@ -144,6 +144,10 @@ The design of a Daub grammar is heavily influenced by that of TextMate-style gra
 Daub grammars allow for contextual rules (e.g., highlighting escape sequences _only_ within strings) and optional arbitrary logic for identifying the bounds of a rule’s match (to get around the limitiations of regular expressions). Rules share a common “context” object, a key-value store that allows rules to act differently based on state set by earlier rules.
 
 For more information, you can [read about the features of grammars](./docs/grammars.md).
+
+## ‘daub’ or ‘daubjs’?
+
+NPM is fun, isn’t it? To be clear: the framework refers to itself as Daub internally. Its name in NPM is `daubjs` because `daub` was already taken. You should refer to it as `daubjs` only as it relates to importing code. All other usages — e.g., custom event names and attributes — refer to the framework as `daub`.
 
 ## Plugins
 
