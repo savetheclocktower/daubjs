@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Powerful syntax highlighting on client or server",
+  "keywords": [
+    "highlight",
+    "syntax-highlighter"
+  ],
+  "homepage": "https://github.com/savetheclocktower/daubjs#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/savetheclocktower/daubjs.git"
+  },
   "main": "dist/daub.umd.cjs",
   "module": "src/all.js",
   "browser": "dist/daub.umd.cjs",
