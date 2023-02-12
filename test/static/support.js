@@ -19,6 +19,9 @@ document.addEventListener('daub-lexer-time', e => {
   console.info('Lexer time:', time, 'ms. Cumulative:', _runningLexerTime, 'Count:', _runningLexerCount);
 });
 
+let URL_PARAMS = new URLSearchParams(location.search);
+let DEBUG = URL_PARAMS.has('debug');
+
 const Support = {
   async setup () {
     if (!GRAMMAR) {
@@ -78,6 +81,7 @@ const Support = {
     }
 
     HIGHLIGHTER.addElement(root);
+    HIGHLIGHTER.setLogging(DEBUG);
     this.HIGHLIGHTER = HIGHLIGHTER;
 
     let start, end;

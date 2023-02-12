@@ -39,14 +39,7 @@ if (!process.env.DEBUG) {
         'console.warn',
         'console.group',
         'console.groupCollapsed',
-        'console.groupEnd',
-        'LOGGER.debug',
-        'LOGGER.info',
-        'LOGGER.log',
-        'LOGGER.warn',
-        'LOGGER.group',
-        'LOGGER.groupCollapsed',
-        'LOGGER.groupEnd'
+        'console.groupEnd'
       ],
       sourceMap: false
     }),
@@ -73,18 +66,6 @@ export default [
         // Only transpile our source code.
         exclude: 'node_modules/**',
       }),
-      ...extraPlugins
-    ]
-  },
-
-  // ES6 converted to logging-stripped ES6.
-  {
-    input: mappings,
-    output: {
-      dir: 'lib'
-    },
-    plugins: [
-      resolve({ exportConditions: ['node'] }),
       ...extraPlugins
     ]
   },

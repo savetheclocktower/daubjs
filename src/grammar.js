@@ -1,6 +1,7 @@
 import { gsub, regExpToString, wrap } from '#internal/utils';
 import Template from '#internal/template';
 import Context from '#internal/context';
+import Logger from '#internal/logger';
 
 function resolve (value) {
   if (typeof value === 'function') { return value(); }
@@ -29,6 +30,7 @@ class Grammar {
 
     this.options = options;
     this.rules = [];
+    this.logger = new Logger(`Grammar ${this.name}`);
 
     this._originalRules = rules;
 
@@ -44,9 +46,11 @@ class Grammar {
     return { ...this._originalRules };
   }
 
-  parse (text, context = null) {
+  parse (text, context = null, { logging = false } = {}) {
     let pattern = this.pattern;
     pattern.lastIndex = 0;
+
+    this.logger.toggle( resolve(logging) );
 
     if (!context) {
       context = new Context({
@@ -55,7 +59,7 @@ class Grammar {
     }
 
     // eslint-disable-next-line
-    console.debug(`Parsing ${this.name || ''}`, { pattern, text });
+    this.logger.debug(`Parsing ${this.name || ''}`, { pattern, text });
 
     if ( !pattern.test(text) ) { return text; }
     let parsed = gsub(text, pattern, (match, source) => {
@@ -66,7 +70,7 @@ class Grammar {
           j += rule.length;
           continue;
         }
-        console.debug('MATCH rule:', rule, match[j]);
+        this.logger.debug('MATCH rule:', rule, match[j]);
 
         if (rule.index) {
           // The rule is saying that it might decide that it wants to parse
@@ -75,7 +79,11 @@ class Grammar {
           //
           // We'll return this index as a second return parameter from this
           // handler in order to let gsub know what's up.
-          actualLength = rule.index(match[0], context);
+          let prelim = [], q = j;
+          for (let q = 0; q < rule.length; q++) {
+            prelim.push(match[q + j]);
+          }
+          actualLength = rule.index(match[0], context, prelim);
           if (actualLength <= 0) {
             // -1 is your standard "string not found" index, and 0 is invalid
             // because we need to consume at least some of the string to
@@ -253,6 +261,9 @@ class Rule {
 
     let originalPattern = rule.pattern;
     let pattern = rule.pattern;
+    if (pattern == null) {
+      throw new Error(`Rule must have pattern: ${name}`);
+    }
     if (typeof pattern !== 'string') {
       pattern = regExpToString(pattern);
     }

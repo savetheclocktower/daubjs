@@ -29,7 +29,7 @@ The downside of this approach is that you get the maximal bundle, including all 
 
 ### Moderately complex: import pieces as part of your bundling strategy
 
-If you bundle your JavaScript with a tool like [Rollup](https://rollupjs.org/), you can import only the pieces you need; consult `examples/simple.js` for a typical usage.
+If you bundle your JavaScript with a tool like [Rollup][], you can import only the pieces you need; consult `examples/simple.js` for a typical usage.
 
 This allows you to import only the parts you want, though you can replicate the all-in-one bundle by importing `daubjs/all`.
 
@@ -145,19 +145,29 @@ Daub grammars allow for contextual rules (e.g., highlighting escape sequences _o
 
 For more information, you can [read about the features of grammars](./docs/grammars.md).
 
-## ‘daub’ or ‘daubjs’?
+### Built-in grammars
 
-NPM is fun, isn’t it? To be clear: the framework refers to itself as Daub internally. Its name in NPM is `daubjs` because `daub` was already taken. You should refer to it as `daubjs` only as it relates to importing code. All other usages — e.g., custom event names and attributes — refer to the framework as `daub`.
+The grammars that come with Daub are the grammars that I have found myself needing in various code blocks on my weblog. Some are quite extensive (`javascript-jsx`); others are quite basic (`shell`). If you have code in any of these languages that doesn’t get highlighted properly, please open an issue.
 
 ## Plugins
 
 Daub fires events on the DOM before and after highlighting a given code block, so it’s possible to hook into these events to do useful things. The `plugins` directory contains [two useful plugins](./docs/plugins.md), each inspired by a similar plugin for Prism.
 
+## Contributing
+
+If you have an enhancement you’d like to contribute to the built-in grammars, or a new grammar altogether that you think ought to be included in Daub, pull requests are welcome.
+
+There are unit tests (`npm run test`); they use jsdom to simulate the DOM. There is also a test server which you can start up to inspect the code output yourself; run `npm test:server` and open the given URL. The unit tests and the test server consume the same set of test fixtures.
+
+To build the code, run `npm run build`, or else use `npm run dev` to rebuild whenever files change. The ES6 source code lives in `src` and can be consumed directly.
+
+To troubleshoot how a grammar parses, it may help to enable logging. You can do this through `Highlighter#setLogging` or by passing `{ logging: true }` in the `options` argument of `Grammar#parse`.
+
+## ‘daub’ or ‘daubjs’?
+
+NPM is fun, isn’t it? To be clear: the framework refers to itself as Daub internally. Its name in NPM is `daubjs` because `daub` was already taken. You should refer to it as `daubjs` only as it relates to importing code. All other usages — e.g., custom event names and attributes — refer to the framework as `daub`.
+
 [Fluorescence]: https://github.com/savetheclocktower/fluorescence/
 [Rollup]: https://rollupjs.org/
-[String.raw]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/raw
-[tagged template literal]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#Tagged_template_literals
-[Map]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [star-light]: http://dean.edwards.name/star-light/
 [Prism]: https://prismjs.com
-[Oniguruma]: https://github.com/kkos/oniguruma

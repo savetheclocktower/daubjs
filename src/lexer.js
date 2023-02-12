@@ -1,4 +1,5 @@
 import Context from '#internal/context';
+import Logger from '#internal/logger';
 
 function resolve (value) {
   if (typeof value === 'function') { return value(); }
@@ -77,6 +78,7 @@ class Lexer {
     this.scopes = options.scopes;
     this.silent = !!options.silent;
     this.highlight = options.highlight;
+    this.logger = new Logger(`Lexer ${this.name}`);
   }
 
   /**
@@ -127,6 +129,10 @@ class Lexer {
    *   key contains whatever fragment of the string could not be parsed.
    */
   run (text, context = null, { startIndex = 0, highlight = false } = {}) {
+    let loggerWasEnabled = this.logger.enabled;
+    if (context) {
+      this.logger.toggle(context.logging);
+    }
     let isRoot = context === null;
     let tokens = [];
     if (!context) {
@@ -171,12 +177,12 @@ class Lexer {
 
       if (!match) {
         // Failing to match anything will cause the Lexer to return and report its results.
-        console.debug(this.name, 'No match!');
+        this.logger.debug(this.name, 'No match!');
         // console.groupEnd();
         break;
       } else {
-        console.debug(this.name, 'Match:', rule.name, match[0], match, rule);
-        console.debug(' found at global index:', match.index + lengthConsumed);
+        this.logger.debug(this.name, 'Match:', rule.name, match[0], match, rule);
+        this.logger.debug(' found at global index:', match.index + lengthConsumed);
       }
 
       if (rule.win) {
@@ -297,7 +303,7 @@ class Lexer {
           // collection.
           tokens.push(initialToken);
         }
-        console.debug('Lexer START', lexerName, 'at index:', subLexerStartIndex, text);
+        this.logger.debug('Lexer START', lexerName, 'at index:', subLexerStartIndex, text);
 
         // To ensure accurate `index` values on Tokens, we need to tell the
         // sub-lexer how much of the string we've already consumed.
@@ -306,7 +312,7 @@ class Lexer {
           highlight
         });
 
-        console.debug('Lexer END', lexerName, 'consumed:', lexerResult.lengthConsumed);
+        this.logger.debug('Lexer END', lexerName, 'consumed:', lexerResult.lengthConsumed);
 
         subTokens.push(...lexerResult.tokens);
 
@@ -339,7 +345,7 @@ class Lexer {
       }
 
       if (ruleIsFinal) {
-        console.debug(this.name, 'Last rule! Done.');
+        this.logger.debug(this.name, 'Last rule! Done.');
         // console.groupEnd();
         break;
       }
@@ -350,7 +356,7 @@ class Lexer {
       // prevent us from using patterns that end up consuming zero characters.
       // In the future I might want this to behave differently.
       if (text === lastText) {
-        console.debug(this.name, `No further matches! Done.`);
+        this.logger.debug(this.name, `No further matches! Done.`);
         // console.groupEnd();
         break;
       }
@@ -365,6 +371,7 @@ class Lexer {
     // Lexer#run returns three values: an array of tokens, the leftover text
     // that could not be parsed (if any), and the number of characters that
     // were able to be parsed.
+    this.logger.toggle(loggerWasEnabled);
     return {
       name: this.name,
       scopes: this.scopes,

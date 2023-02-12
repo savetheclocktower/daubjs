@@ -28,6 +28,11 @@ const makeDefaultUid = () => Math.random().toString(16).slice(2);
 class AbstractHighlighter {
   constructor () {
     this.elements = [];
+    this.logging = false;
+  }
+
+  setLogging (bool) {
+    this.logging = bool;
   }
 
   // PRIVATE
@@ -478,7 +483,7 @@ class Highlighter extends AbstractHighlighter {
     }
     if (!context) { context = new Context({ highlighter: this }); }
 
-    let parsed = grammar.parse(text, context);
+    let parsed = grammar.parse(text, context, { logging: this.logging });
     return parsed;
   }
 }

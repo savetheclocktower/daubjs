@@ -16,14 +16,14 @@
   "module": "src/all.js",
   "browser": "dist/daub.umd.cjs",
   "exports": {
-    ".": "./lib/daub.js",
+    ".": "./src/daub.js",
     "./umd": "./dist/daub.umd.cjs",
     "./umd/worker": "./dist/daub.worker.umd.cjs",
-    "./all": "./lib/all.js",
-    "./grammars/*": "./lib/grammars/*.js",
-    "./grammars/*.js": "./lib/grammars/*.js",
-    "./plugins/*": "./lib/plugins/*.js",
-    "./plugins/*.js": "./lib/plugins/*.js"
+    "./all": "./src/all.js",
+    "./grammars/*": "./src/grammars/*.js",
+    "./grammars/*.js": "./src/grammars/*.js",
+    "./plugins/*": "./src/plugins/*.js",
+    "./plugins/*.js": "./src/plugins/*.js"
   },
   "imports": {
     "#internal/*": "./src/*.js",
