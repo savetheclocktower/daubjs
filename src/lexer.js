@@ -148,13 +148,28 @@ class Lexer {
       // respectively.
       let rule, match, cMatch;
       for (let cRule of this) {
+        cRule.pattern.lastIndex = 0;
         cMatch = cRule.pattern.exec(text);
         if (cMatch && cRule.test) {
-          // A `test` rule, if defined, imposes further criteria on this rule.
-          // If it returns truthy, we proceed. If it returns falsy, the rule
-          // doesn't pass after all.
-          let result = cRule.test(cMatch, text, context, cRule.pattern);
-          if (!result) { cMatch = null; }
+          let result = false;
+          // Will this pattern allow us to keep going?
+          if (cRule.pattern.lastIndex > cMatch.index) {
+            // If this test passes, our regex has a `g` flag and will keep
+            // updating its `lastIndex`. That allows us to keep iterating until
+            // we get a positive result from this rule, or until there are no
+            // more possible matches to test.
+            while (cMatch) {
+              result = cRule.test(cMatch, text, context, cRule.pattern);
+              if (result) { break; }
+              cMatch = cRule.pattern.exec(text);
+            }
+          } else {
+            // A `test` rule, if defined, imposes further criteria on this rule.
+            // If it returns truthy, we proceed. If it returns falsy, the rule
+            // doesn't pass after all.
+            result = cRule.test(cMatch, text, context, cRule.pattern);
+            if (!result) { cMatch = null; }
+          }
         }
 
         if (cMatch) {
