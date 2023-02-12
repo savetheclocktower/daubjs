@@ -2,4 +2,6 @@
 .tm_properties
 .sublime-project
 .vscode
+.tool-versions
+.envrc
 node_modules
