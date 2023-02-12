@@ -1,6 +1,27 @@
+:root {
+  --green: #6f0;
+  --gray: #B0B0B0;
+  --cyan: #7CB893;
+  --dark-cyan: #29A994;
+  --orange: #f60;
+  --yellow: #fc0;
+  --light-yellow: #dde93d;
+  --purple: #BCA1B5;
+  --light-aqua: #D4E6FF;
+  --aqua: #5ddbff;
+  --brown: #999966;
+  --white: #fff;
+}
+
+:root {
+  --bg-dark: #0a0a28;
+  --bg-medium: #333;
+  --bg-regexp-group: rgba(50, 100, 150, 0.3);
+  --bg-embedded: rgba(128, 128, 128, 0.35);
+}
 
 pre {
-  background-color: #0a0a28;
+  background-color: var(--bg-dark);
 }
 
 .daub-line-highlight {
@@ -13,54 +34,56 @@ code b {
 
 code .debug {
   background-color: #900;
-  color: #fff;
+  color: var(--white);
 }
 
 code .comment,
 .token.comment {
-  color: #B0B0B0;
+  color: var(--gray);
 }
 
 code .string,
 .token.string {
-  color: #6f0;
+  color: var(--green);
 }
 
 code .string .escape,
 code .regexp .escape {
-  color: #7CB893;
+  color: var(--cyan);
 }
 
 code .interpolation {
-  background-color: #333;
-  color: #fff;
+  background-color: var(--bg-medium);
+  color: var(--white);
 }
 
 code .keyword,
 code .control,
 code .selector,
 code .operator {
-  color: #f60;
+  color: var(--orange);
 }
 
 code .keyword.keyword-function {
   font-style: italic;
-  color: #fc0;
+  color: var(--yellow);
 }
 
 code .keyword.special,
 code .selector-pseudo,
 code .unit {
-  color: #DDE93D;
+  color: var(--light-yellow);
+  /* color: hsla(var(--light-yellow), 0.8); */
+
 }
 
 code .number {
-  color: #BCA1B5;
+  color: var(--purple);
 }
 
 code .constant,
 code .symbol {
-  color: #7CB893;
+  color: var(--cyan);
 }
 
 code .superclass {
@@ -72,17 +95,17 @@ code .storage {
 }
 
 code .support {
-  color: #D4E6FF;
+  color: var(--light-aqua);
 }
 
 code .support.dom {
-  color: #53D7FE;
+  color: var(--aqua);
 }
 
 code .function,
 code .entity,
 code .property {
-  color: #fc0;
+  color: var(--orange);
 }
 
 code .parameter,
@@ -91,18 +114,18 @@ code .variable-parameter {
 }
 
 code .variable {
-  color: #5ddbff;
+  color: var(--aqua);
 }
 
 code .regexp {
-  color: #29A994;
+  color: var(--dark-cyan);
 }
 
 code .regexp .group {
-  background-color: #041210;
+  background-color: var(--bg-regexp-group);
 }
 
-code .regexp .group .group {
+/* code .regexp .group .group {
   background-color: #0c1a17;
 }
 
@@ -112,21 +135,30 @@ code .regexp .group .group .group {
 
 code .regexp .group .group .group .group {
   background-color: #1b2724;
-}
+} */
 
 code .embedded {
-  background-color: rgba(128, 128, 128, 0.35);
+  background-color: var(--bg-embedded);
+}
+
+code.php {
+  --bg-embedded: rgba(128, 128, 128, 0.15);
+}
+
+code.php .string {
+  --bg-embedded: rgba(128, 128, 128, 0.35);
 }
 
 code .embedded .punctuation.embedded-start,
 code .embedded .punctuation.embedded-end,
 code .embedded .punctuation.interpolation-begin,
 code .embedded .punctuation.interpolation-end {
-  color: #fff;
+  color: var(--white);
 }
 
 code .string-shell-command {
-  color: #cc3;
+  color: hsla(var(--light-yellow), 0.8);
+  /* color: #cc3; */
 }
 
 code .embedded .interpolation {

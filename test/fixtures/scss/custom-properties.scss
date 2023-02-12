@@ -1,0 +1,27 @@
+:root {
+  --green: #6f0;
+  --gray: #B0B0B0;
+  --cyan: #7CB893;
+  --dark-cyan: #29A994;
+  --orange: #f60;
+  --yellow: #fc0;
+  --light-yellow: #dde93d;
+  --purple: #BCA1B5;
+  --light-aqua: #D4E6FF;
+  --aqua: #5ddbff;
+  --brown: #999966;
+  --white: #fff;
+}
+
+:root {
+  --bg-dark: #0a0a28;
+  --bg-medium: #333;
+  --bg-regexp-group: rgba(50, 100, 150, 0.3);
+  --bg-embedded: rgba(128, 128, 128, 0.35);
+}
+
+pre {
+  background-color: var(--bg-dark);
+  background-color: var(--bg-dark, #000);
+  color: var(--green, rgba(128, 128, 128, 0.35));
+}

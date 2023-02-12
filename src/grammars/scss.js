@@ -104,24 +104,13 @@ const PARAMETERS = new Grammar({
       (:)                 # 3: colon
       (\s*)               # 4: space
       (.*?)               # 5: stuff
-      (?=,|\),\n)         # lookahead: end of line or statement
+      (?=,|\)|\n)         # lookahead: end of line or statement
     `,
     captures: {
       '1': 'variable variable-parameter',
       '3': 'punctuation',
       '5': () => VALUES
     }
-    // pattern: /(\$[A-Za-z][A-Za-z0-9_-]*)(\s*:\s*)(.*?)(?=,|\)|\n)/,
-    // replacement: compact(`
-    //   <span class="parameter">
-    //     #{1}#{2}#{3}
-    //   </span>
-    // `),
-    // captures: {
-    //   '1': 'variable',
-    //   '2': 'punctuation',
-    //   '3': () => VALUES
-    // }
   }
 }).extend( variableRuleNamed('variable variable-parameter') );
 
@@ -199,7 +188,7 @@ const SELECTORS = new Grammar({
   },
 
   'selector selector-pseudo selector-pseudo-without-args': {
-    pattern: /(:{1,2})(link|visited|hover|active|focus|targetdisabled|enabled|checked|indeterminate|root|first-child|last-child|first-of-type|last-of-type|only-child|only-of-type|empty|valid|invalid)/
+    pattern: /(:{1,2})(link|visited|hover|active|focus|targetdisabled|enabled|checked|indeterminate|root|first-child|last-child|first-of-type|last-of-type|only-child|only-of-type|empty|valid|invalid|root)/
   },
 
   'selector selector-pseudo selector-pseudo-element': {
@@ -269,6 +258,43 @@ const OPERATORS = new Grammar({
 }).extend(OPERATOR_LOGICAL);
 
 const VALUES = new Grammar({
+
+  'meta: variable without fallback': {
+    pattern: VerboseRegExp`
+      (var\(\s*)        # 1: opening
+      (--[a-z-]+[a-z])  # 2: variable name
+      (\))              # 3: closing
+    `,
+    captures: {
+      '1': 'storage',
+      '2': 'variable variable-custom-property'
+    }
+  },
+
+  'meta: variable with fallback': {
+    pattern: VerboseRegExp`
+      (var\(\s*)        # 1: opening
+      (--[a-z-]+[a-z])  # 2: variable name
+      (\s*,\s*)         # 3: comma
+      ([\s\S]+)         # 4: value
+      (\))              # 5: closing
+    `,
+    index (text, context) {
+      let startIndex = text.indexOf('(', text.indexOf('(') + 1);
+      let result = balance(text, ')', '(', {
+        startIndex,
+        startDepth: 1
+      }) + 1;
+      return result;
+    },
+
+    captures: {
+      '1': 'storage',
+      '2': 'variable variable-custom-property',
+      '4': () => VALUES
+    }
+  },
+
   // An arbitrary grouping of parentheses could also be a list, among other
   // things. But we don't need to apply special highlighting to lists;
   // their values will get highlighted.
@@ -321,7 +347,8 @@ const VALUES = new Grammar({
       '1': 'number',
       '3': 'unit'
     }
-  }
+  },
+
 }).extend(OPERATORS, VARIABLE);
 
 const NUMBERS = new Grammar({
@@ -397,6 +424,13 @@ const COMMENTS = new Grammar({
 });
 
 const PROPERTIES = new Grammar({
+  'meta: custom property pair': {
+    pattern: /(--[\-a-z]+)(\s*:\s*)([^;]+)(;)/,
+    captures: {
+      '1': 'variable variable-custom-property',
+      '3': () => VALUES
+    }
+  },
   'meta: property pair': {
     pattern: /([\-a-z]+)(\s*:\s*)([^;]+)(;)/,
     captures: {
@@ -659,6 +693,7 @@ MAIN.extend({
         (?:&|&amp;)|      # self-reference
         %|      # abstract class name
         \*|     # wildcard
+        :|      # pseudo
 
         # Otherwise, see if it matches a known tag name:
         (?:a|abbr|acronym|address|area|article|aside|audio|b|base|big|blockquote|body|br|button|canvas|caption|cite|code|col|colgroup|datalist|dd|del|details|dfn|dialog|div|dl|dt|em|eventsource|fieldset|figure|figcaption|footer|form|frame|frameset|(?:h[1-6])|head|header|hgroup|hr|html|i|iframe|img|input|ins|kbd|label|legend|li|link|main|map|mark|menu|meta|meter|nav|noframes|noscript|object|ol|optgroup|option|output|p|param|pre|progress|q|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|svg|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|tt|ul|var|video)\b
