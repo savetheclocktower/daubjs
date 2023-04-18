@@ -221,8 +221,9 @@ const MAIN = new Grammar('python', {
       ([A-Za-z0-9_]+) # 3: method name
       (\s*)             # 4: space
       (\()              # 5: open paren
-      ([\s\S]*?)?       # 6: parameters (optional)
+      ([^:]*?)?       # 6: parameters (optional)
       (\))              # 7: close paren
+      (?=:)             # (before a colon)
     `,
     captures: {
       '1': 'keyword',
