@@ -49,7 +49,7 @@ class Grammar {
   parse (text, context = null, { logging = false } = {}) {
     let pattern = this.pattern;
     pattern.lastIndex = 0;
-    logging = context.logging || logging;
+    logging = context?.logging || logging;
 
     this.logger.toggle( resolve(logging) );
 
