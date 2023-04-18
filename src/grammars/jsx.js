@@ -737,7 +737,7 @@ let ARROW_FUNCTIONS = new Grammar({
     pattern: VerboseRegExp`
       (       # 1:
         \(    # optional opening paren
-        [^)]+ # contents of params
+        [^)\(]+ # contents of params
         \)    # optional closing paren
       )
       (\s*)         # 2: optional space
@@ -752,7 +752,7 @@ let ARROW_FUNCTIONS = new Grammar({
     pattern: VerboseRegExp`
       ( # EITHER:
         \(? # optional opening paren
-        [^)] # contents of params
+        [^)\(] # contents of params
         \)? # optional closing paren
         | # OR:
        [a-zA-Z_$][a-zA-Z0-9_$]* # any single identifier
@@ -784,8 +784,8 @@ VALUES.extend(
     }
   }
 );
-VALUES.extend(ARROW_FUNCTIONS);
 VALUES.extend(STRINGS);
+VALUES.extend(ARROW_FUNCTIONS);
 VALUES.extend({
   comment: {
     pattern: /(\/\/[^\n]*(?=\n|$))|(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/
@@ -1196,7 +1196,7 @@ MAIN.extend({
 
   'function function-literal-shorthand-style': {
     pattern: VerboseRegExp`
-      (^\s*)            # 1: space
+      (^\s+)            # 1: space
       (get|set|static)? # 2: annotation
       (\s*)             # 3: space
       ([\w$][\w\d$]*)   # 4: function name

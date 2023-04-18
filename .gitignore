@@ -1,7 +1,7 @@
 .DS_Store
 .tm_properties
-.sublime-project
 .vscode
+.sublime-project
 .tool-versions
 .envrc
 node_modules

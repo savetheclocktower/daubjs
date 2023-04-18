@@ -9,7 +9,7 @@ function resolve (value) {
 }
 
 class ParseError extends Error {
-  constructor(message) {
+  constructor (message) {
     super(message);
     this.name = 'ParseError';
   }
@@ -49,6 +49,7 @@ class Grammar {
   parse (text, context = null, { logging = false } = {}) {
     let pattern = this.pattern;
     pattern.lastIndex = 0;
+    logging = context.logging || logging;
 
     this.logger.toggle( resolve(logging) );
 
@@ -57,7 +58,7 @@ class Grammar {
         highlighter: { parse: (x) => x }
       });
     }
-
+    context.logging = logging;
     // eslint-disable-next-line
     this.logger.debug(`Parsing ${this.name || ''}`, { pattern, text });
 
@@ -301,7 +302,7 @@ class Rule {
     }
   }
 
-  toObject() {
+  toObject () {
     return {
       // Export the original pattern, not the one we transformed. It'll need to
       // be re-transformed in its new context.

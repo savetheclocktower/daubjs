@@ -81,6 +81,7 @@ const Support = {
     }
 
     HIGHLIGHTER.addElement(root);
+    console.log('setting logging to:', DEBUG);
     HIGHLIGHTER.setLogging(DEBUG);
     this.HIGHLIGHTER = HIGHLIGHTER;
 

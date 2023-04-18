@@ -75,7 +75,7 @@ export default [
     input: 'src/worker.js',
     output: {
       name: 'daub',
-      file: 'dist/daub.worker.umd.js',
+      file: 'dist/daub.worker.umd.cjs',
       format: 'umd'
     },
     plugins: [

@@ -24,8 +24,10 @@ function parseLanguage (text, language, context) {
 }
 
 onmessage = function (event) {
+  let loggerWasEnabled = LOGGER.enabled;
+  let { type, logger } = event.data;
+  if (logger) { LOGGER.toggle(logger); }
   LOGGER.log('Message:', event);
-  let { type } = event.data;
   switch (type) {
     case 'parse': {
       let { language, text, id } = event.data;
@@ -37,4 +39,5 @@ onmessage = function (event) {
       break;
     }
   }
+  LOGGER.toggle(loggerWasEnabled);
 };

@@ -271,6 +271,7 @@ class AsyncHighlighter extends AbstractHighlighter {
         type: 'parse',
         text,
         language,
+        logging: this.logging,
         id: uid
       });
     });

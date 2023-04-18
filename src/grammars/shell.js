@@ -57,11 +57,11 @@ const MAIN = new Grammar('shell', {
   },
 
   'support support-builtin': {
-    pattern: /\b(?:sudo|chmod|cd|mkdir|ls|cat|echo|touch|mv|cp|rm|ln|sed|awk|tr|xargs|yes|pbcopy|pbpaste|trap)\b/
+    pattern: /\b(?:sudo|chmod|chown|cd|mkdir|ls|cat|echo|touch|mv|cp|rm|ln|sed|awk|tr|xargs|yes|pbcopy|pbpaste|trap)\b/
   },
 
   'support support-other': {
-    pattern: /\b(?:ruby|gem|rake|python|pip|easy_install|node|npm|php|perl|bash|sh|zsh|gcc|go|mate|subl|atom|nano|pico)(?=\s)/
+    pattern: /\b(?:ruby|gem|rake|python|pip|easy_install|node|npm|php|perl|bash|sh|zsh|gcc|go|mate|subl|atom|pulsar|nano|pico|curl|vim|vi|emacs)(?=\s|$)/
   },
 
   // Special-case IPs before we handle floats.

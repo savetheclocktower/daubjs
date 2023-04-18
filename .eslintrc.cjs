@@ -28,6 +28,7 @@ module.exports = {
       "error",
       "always"
     ],
+    "space-before-function-paren": ["error", "always"],
     "no-useless-escape": "off",
     "no-cond-assign": "off",
     "no-unused-vars": "off",
