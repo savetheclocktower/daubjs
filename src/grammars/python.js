@@ -109,7 +109,7 @@ const ARGUMENTS = new Grammar({
     pattern: /(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*?)(?=,|$)/,
     captures: {
       '2': 'variable variable-parameter',
-      '3': 'keyword punctuation',
+      '3': 'keyword',
       '4': VALUES
     }
   }
@@ -130,7 +130,7 @@ const PARAMETERS = new Grammar({
     pattern: /(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*?)(?=,|$)/,
     captures: {
       '2': 'variable variable-parameter',
-      '3': 'keyword punctuation',
+      '3': 'keyword operator',
       '4': () => VALUES
     }
   }
@@ -218,10 +218,10 @@ const MAIN = new Grammar('python', {
     pattern: VerboseRegExp`
       (def)             # 1: keyword
       (\s+)             # 2: space
-      ([A-Za-z0-9_!?]+) # 3: method name
+      ([A-Za-z0-9_]+) # 3: method name
       (\s*)             # 4: space
       (\()              # 5: open paren
-      (.*?)?            # 6: parameters (optional)
+      ([\s\S]*?)?       # 6: parameters (optional)
       (\))              # 7: close paren
     `,
     captures: {
@@ -257,7 +257,7 @@ const MAIN = new Grammar('python', {
   },
 
   'keyword operator operator-bitwise': {
-    pattern: /(?:&|\||~|\^|>>|<<)/
+    pattern: /(?:&amp;|\||~|\^|>>|<<|&(?![a-z]+;))/
   },
 
   'keyword operator operator-assignment': {
@@ -265,7 +265,7 @@ const MAIN = new Grammar('python', {
   },
 
   'keyword operator operator-comparison': {
-    pattern: /(?:>=|<=|!=|==|>|<)/
+    pattern: /(?:>=|<=|!=|==|>|<|&lt;|&gt;)/
   },
 
   'keyword operator operator-arithmetic': {
